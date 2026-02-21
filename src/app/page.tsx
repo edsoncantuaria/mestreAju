@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -30,7 +29,8 @@ import {
   Trash2,
   User,
   Terminal,
-  Cloud
+  Cloud,
+  History
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -236,7 +236,7 @@ function ScreenDungeonMasterContent() {
     } else if (!loadingSessions && !loadingProfile) {
       setIsRestoringSession(false);
     }
-  }, [loadingSessions, loadingProfile, sessions, activeSessionId, userProfile, toast]);
+  }, [loadingSessions, loadingProfile, sessions, activeSessionId, userProfile]);
 
   const tools = [
     { 
@@ -324,7 +324,7 @@ function ScreenDungeonMasterContent() {
   const handleContextAction = async (targetToolId: ToolId, data: any) => {
     if (!db || !user || !activeSessionId) return;
 
-    // 1. Ensure the tool is open
+    // 1. Ensure the tool is open without closing the active one
     if (!activeTools.includes(targetToolId)) {
       updateActiveTools([...activeTools, targetToolId]);
     }
@@ -340,7 +340,7 @@ function ScreenDungeonMasterContent() {
       dateLastModified: new Date().toISOString()
     });
 
-    toast({ title: "Contexto Integrado", description: `Enviando dados para ${targetToolId}...` });
+    toast({ title: "Fluxo Integrado", description: `Enviando contexto para ${targetToolId}...` });
   };
 
   const handleSignOut = () => {
@@ -443,7 +443,7 @@ function ScreenDungeonMasterContent() {
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
-                    <p>{isActive ? 'Fechar' : 'Abrir'} {tool.label}</p>
+                    <p>{isActive ? 'Minimizar' : 'Ativar'} {tool.label}</p>
                   </TooltipContent>
                 </Tooltip>
               );
@@ -487,7 +487,7 @@ function ScreenDungeonMasterContent() {
                       </div>
                       <div className="flex gap-2">
                         <Input 
-                          placeholder="Raça (ex: Changeling)"
+                          placeholder="Raça"
                           value={member.race}
                           onChange={(e) => updateMember(member.id, { race: e.target.value })}
                           className="h-7 text-[10px] bg-black/40 border-white/10"
@@ -511,22 +511,15 @@ function ScreenDungeonMasterContent() {
                   </div>
                 ))}
               </div>
-              <div className="p-3 bg-accent/5 text-[9px] text-accent/70 font-bold border-t border-white/5 uppercase tracking-tighter text-center">
-                O cálculo de dificuldade será ajustado automaticamente
-              </div>
             </PopoverContent>
           </Popover>
           
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 overflow-hidden">
-                {user.photoURL ? (
-                  <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-xs">
-                    {user.email?.[0].toUpperCase() || '?'}
-                  </div>
-                )}
+                <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-xs">
+                  {user.email?.[0].toUpperCase() || '?'}
+                </div>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-56 bg-card border-white/10 shadow-2xl" align="end">
@@ -562,7 +555,7 @@ function ScreenDungeonMasterContent() {
                <h2 className="text-3xl font-headline text-accent">O Grimório está Vazio</h2>
                <p className="text-muted-foreground italic">Prepare uma nova sessão ou carregue uma crônica existente para despertar o Copiloto.</p>
              </div>
-             <Button size="lg" onClick={() => setIsModalOpen(true)} className="bg-primary font-headline px-8">
+             <Button size="lg" onClick={() => setIsModalOpen(true)} className="bg-primary font-headline px-8 shadow-xl shadow-primary/20">
                Despertar Copiloto
              </Button>
           </div>
@@ -578,17 +571,15 @@ function ScreenDungeonMasterContent() {
                 key={tool.id} 
                 className="animate-in fade-in slide-in-from-bottom-4 duration-500 h-full"
               >
-                <div className="glass-card rounded-2xl overflow-hidden border border-white/10 h-full flex flex-col">
+                <div className="glass-card rounded-2xl overflow-hidden border border-white/10 h-full flex flex-col shadow-2xl">
                   <div className="h-12 flex items-center justify-between px-5 bg-black/40 border-b border-white/5 shrink-0">
                     <div className="flex items-center gap-2">
                       <tool.icon size={16} className={tool.id === 'live' ? 'text-rose-500 animate-pulse' : tool.color} />
                       <span className="font-headline font-bold text-xs tracking-wide uppercase text-accent/80">{tool.label}</span>
-                      {activeSession && tool.id !== 'rules' && (
-                        <div className="flex items-center gap-1">
-                          <LinkIcon size={10} className="text-green-500" />
-                          <span className="text-[8px] font-bold text-green-500 uppercase">Sincronizado</span>
-                        </div>
-                      )}
+                      <div className="flex items-center gap-1 ml-2">
+                        <LinkIcon size={10} className="text-green-500" />
+                        <span className="text-[8px] font-bold text-green-500 uppercase">Cloud Sync</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-1">
                       <Button 
@@ -601,7 +592,7 @@ function ScreenDungeonMasterContent() {
                       </Button>
                     </div>
                   </div>
-                  <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1 min-h-[450px]">
+                  <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1 min-h-[500px]">
                     <tool.component 
                       partyInfo={{ members: partyMembers }} 
                       activeSession={activeSession}
@@ -615,7 +606,6 @@ function ScreenDungeonMasterContent() {
         )}
       </main>
 
-      {/* Persistence Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[600px] bg-card border-white/10 p-0 overflow-hidden shadow-2xl">
           <div className="h-1.5 bg-primary w-full" />
@@ -660,7 +650,7 @@ function ScreenDungeonMasterContent() {
                     {loadingSessions ? (
                       <div className="py-12 flex flex-col items-center justify-center text-muted-foreground opacity-50">
                         <Loader2 className="animate-spin mb-2" />
-                        <span className="text-[10px] font-bold">Acessando Firestore...</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Acessando Firestore...</span>
                       </div>
                     ) : sessions && sessions.length > 0 ? (
                       sessions.map((session: any) => (
@@ -701,13 +691,13 @@ function ScreenDungeonMasterContent() {
           <span className="flex items-center gap-1"><Shield size={10} className="text-accent" /> CR: {avgLevel}</span>
           <span className="flex items-center gap-1"><Users size={10} className="text-accent" /> PARTY: {partyMembers.length}</span>
         </div>
-        <div className="flex gap-4">
+        <div className="flex gap-4 items-center">
           <span className="text-accent font-bold">
             {activeSession ? 'Sessão Ativa: ' + activeSession.title : 'Sistema em Standby'}
           </span>
           <span className="opacity-30">|</span>
           <span className="flex items-center gap-1 text-green-500">
-             <Cloud size={10} className={user.isAnonymous ? 'text-amber-500' : 'text-green-500'} /> CLOUD SYNC: {user.isAnonymous ? 'TEMPORÁRIO' : 'SEGURO'} ({user.uid.substring(0,6)})
+             <Cloud size={10} className={user.isAnonymous ? 'text-amber-500' : 'text-green-500'} /> CLOUD SYNC: {user.isAnonymous ? 'TEMPORÁRIO' : 'SEGURO'}
           </span>
         </div>
       </footer>
