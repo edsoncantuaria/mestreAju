@@ -1,14 +1,11 @@
-
 'use client';
 
 import React, { useState } from 'react';
-import { Search, Send, Loader2, Skull, ShieldCheck, Zap } from 'lucide-react';
+import { Search, Loader2, Skull, ShieldCheck, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { analyzeContext, type AnalyzeContextOutput } from '@/ai/flows/analyze-context';
-import { FeatureHeader } from '@/components/shared/feature-header';
-import { Label } from '@/components/ui/label';
 
 export function ContextAnalysisTool() {
   const [formData, setFormData] = useState({
@@ -35,159 +32,99 @@ export function ContextAnalysisTool() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <FeatureHeader 
-        title="Análise de Contexto" 
-        description="Analise situações específicas considerando NPCs, facções e promessas passadas."
-        icon={Search}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-5 space-y-4">
-          <Card className="bg-card/50 border-primary/20">
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-accent font-headline">A Situação Atual</Label>
-                <Textarea 
-                  placeholder="Ex: O grupo foi pego roubando o tesouro do Barão..."
-                  value={formData.situation}
-                  onChange={(e) => setFormData({...formData, situation: e.target.value})}
-                  className="bg-background/50"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Eventos Passados Relevantes</Label>
-                <Textarea 
-                  placeholder="O que aconteceu antes que influencia agora?"
-                  value={formData.pastEvents}
-                  onChange={(e) => setFormData({...formData, pastEvents: e.target.value})}
-                  className="bg-background/50 h-20"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">NPCs Envolvidos</Label>
-                  <Textarea 
-                    placeholder="Nomes e papéis..."
-                    value={formData.npcs}
-                    onChange={(e) => setFormData({...formData, npcs: e.target.value})}
-                    className="bg-background/50 h-20"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Facções</Label>
-                  <Textarea 
-                    placeholder="Organizações..."
-                    value={formData.factions}
-                    onChange={(e) => setFormData({...formData, factions: e.target.value})}
-                    className="bg-background/50 h-20"
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-muted-foreground">Promessas / Segredos</Label>
-                <Textarea 
-                  placeholder="Dívidas de sangue, juramentos..."
-                  value={formData.promises}
-                  onChange={(e) => setFormData({...formData, promises: e.target.value})}
-                  className="bg-background/50 h-20"
-                />
-              </div>
-              <Button 
-                onClick={handleAnalyze} 
-                disabled={loading || !formData.situation.trim()}
-                className="w-full bg-primary hover:bg-primary/80 font-headline h-12"
-              >
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <Send className="mr-2" />}
-                Decifrar Destino
-              </Button>
-            </CardContent>
-          </Card>
+    <div className="space-y-4">
+      {!result && !loading ? (
+        <div className="space-y-3 animate-in fade-in duration-300">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-accent uppercase tracking-widest">A Situação</label>
+            <Textarea 
+              placeholder="O que está acontecendo agora?"
+              value={formData.situation}
+              onChange={(e) => setFormData({...formData, situation: e.target.value})}
+              className="bg-background/30 border-white/5 h-20 text-xs"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">NPCs</label>
+              <Textarea 
+                value={formData.npcs}
+                onChange={(e) => setFormData({...formData, npcs: e.target.value})}
+                className="bg-background/30 border-white/5 h-12 text-[10px]"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase">Facções</label>
+              <Textarea 
+                value={formData.factions}
+                onChange={(e) => setFormData({...formData, factions: e.target.value})}
+                className="bg-background/30 border-white/5 h-12 text-[10px]"
+              />
+            </div>
+          </div>
+          <Button 
+            onClick={handleAnalyze} 
+            disabled={loading || !formData.situation.trim()}
+            className="w-full bg-primary hover:bg-primary/80 font-headline"
+          >
+            Decifrar Destino
+          </Button>
         </div>
+      ) : null}
 
-        <div className="lg:col-span-7">
-          {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
-              <Loader2 className="h-10 w-10 animate-spin text-accent mb-4" />
-              <p className="font-headline italic">Tecendo as linhas do destino...</p>
-            </div>
-          ) : result ? (
-            <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
-              <Card className="border-accent/40 bg-accent/5">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-headline text-accent">🔎 Análise</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm leading-relaxed">
-                  {result.analise}
-                </CardContent>
-              </Card>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Card className="border-primary/20">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-md font-headline flex items-center gap-2">
-                      <ShieldCheck className="text-green-500 h-4 w-4" />
-                      Caminhos &amp; Sucessos
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {result.caminhosPossiveis.map((p, i) => (
-                      <div key={i} className="text-xs p-2 bg-primary/10 rounded border-l-2 border-primary">
-                        {p}
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-
-                <Card className="border-destructive/20">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-md font-headline flex items-center gap-2 text-destructive">
-                      <Skull className="h-4 w-4" />
-                      Complicação Oculta
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="text-sm italic">
-                    {result.complicacaoOculta}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <Card className="border-primary/20">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-md font-headline flex items-center gap-2">
-                    <Zap className="text-accent h-4 w-4" />
-                    Consequências Imediatas &amp; Longas
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                  <div className="space-y-1">
-                    <span className="font-bold text-accent/80">Curto Prazo:</span>
-                    <p>{result.consequencias.curtoPrazo}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-bold text-accent/80">Médio Prazo:</span>
-                    <p>{result.consequencias.medioPrazo}</p>
-                  </div>
-                  <div className="space-y-1">
-                    <span className="font-bold text-accent/80">Longo Prazo:</span>
-                    <p>{result.consequencias.longoPrazo}</p>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20 text-sm italic">
-                <span className="font-headline font-bold text-accent not-italic">Escalonamento de Tensão: </span>
-                {result.escalonamentoTensao}
-              </div>
-            </div>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground/30 py-20">
-              <Search size={80} />
-              <p className="mt-4 font-headline text-xl">Aguardando entrada para análise...</p>
-            </div>
-          )}
+      {loading && (
+        <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
+          <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
+          <p className="font-headline italic text-xs">Tecendo as linhas do destino...</p>
         </div>
-      </div>
+      )}
+
+      {result && !loading && (
+        <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500">
+          <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg text-xs leading-relaxed text-muted-foreground">
+            {result.analise}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Card className="border-white/5 bg-black/20">
+              <CardHeader className="py-2 px-3 border-b border-white/5">
+                <CardTitle className="text-[10px] font-headline flex items-center gap-1">
+                  <ShieldCheck className="text-green-500 h-2 w-2" />
+                  Caminhos
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2 space-y-1">
+                {result.caminhosPossiveis.slice(0, 3).map((p, i) => (
+                  <div key={i} className="text-[9px] p-1.5 bg-white/5 rounded border-l border-primary/50">
+                    {p}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+
+            <Card className="border-destructive/20 bg-destructive/5">
+              <CardHeader className="py-2 px-3 border-b border-destructive/10">
+                <CardTitle className="text-[10px] font-headline flex items-center gap-1 text-destructive">
+                  <Skull className="h-2 w-2" />
+                  Segredo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-2 text-[9px] italic text-muted-foreground">
+                {result.complicacaoOculta}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="p-3 rounded-lg bg-primary/10 border border-white/5 text-[10px] italic">
+            <span className="font-bold text-accent not-italic">Tensão: </span>
+            {result.escalonamentoTensao}
+          </div>
+          
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
+            Nova Análise
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

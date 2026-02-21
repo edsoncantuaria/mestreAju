@@ -1,13 +1,11 @@
-
 'use client';
 
 import React, { useState } from 'react';
-import { Zap, Send, Loader2, Landmark, Users, Globe } from 'lucide-react';
+import { Zap, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { manageConsequences, type ManageConsequencesOutput } from '@/ai/flows/manage-consequences';
-import { FeatureHeader } from '@/components/shared/feature-header';
 
 export function ConsequencesTool() {
   const [playerAction, setPlayerAction] = useState('');
@@ -29,86 +27,73 @@ export function ConsequencesTool() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <FeatureHeader 
-        title="Gerenciamento de Consequências" 
-        description="Preveja os impactos sociais, econômicos e políticos das ações dos jogadores."
-        icon={Zap}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-5 space-y-4">
-          <Card className="bg-card/50 border-primary/20">
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-accent uppercase tracking-wider">Ação dos Jogadores</label>
-                <Textarea 
-                  placeholder="Ex: Mataram o mercador corrupto no meio da praça..."
-                  value={playerAction}
-                  onChange={(e) => setPlayerAction(e.target.value)}
-                  className="bg-background/50 h-32"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Contexto do Mundo</label>
-                <Textarea 
-                  placeholder="Quem era o mercador? Quem viu? Como é a guarda local?"
-                  value={context}
-                  onChange={(e) => setContext(e.target.value)}
-                  className="bg-background/50 h-32"
-                />
-              </div>
-              <Button 
-                onClick={handleGenerate} 
-                disabled={loading || !playerAction.trim()}
-                className="w-full bg-primary hover:bg-primary/80 font-headline h-12"
-              >
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <Zap className="mr-2" />}
-                Calcular Efeitos
-              </Button>
-            </CardContent>
-          </Card>
+    <div className="space-y-4">
+      {!result && !loading ? (
+        <div className="space-y-3 animate-in fade-in duration-300">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-accent uppercase tracking-wider">Ação dos Jogadores</label>
+            <Textarea 
+              placeholder="O que eles fizeram?"
+              value={playerAction}
+              onChange={(e) => setPlayerAction(e.target.value)}
+              className="bg-background/30 border-white/5 h-20 text-xs"
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Contexto</label>
+            <Textarea 
+              placeholder="Onde? Quem estava lá?"
+              value={context}
+              onChange={(e) => setContext(e.target.value)}
+              className="bg-background/30 border-white/5 h-16 text-xs"
+            />
+          </div>
+          <Button 
+            onClick={handleGenerate} 
+            disabled={loading || !playerAction.trim()}
+            className="w-full bg-primary hover:bg-primary/80 font-headline"
+          >
+            Calcular Efeitos
+          </Button>
         </div>
+      ) : null}
 
-        <div className="lg:col-span-7 space-y-6">
-          {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
-              <Loader2 className="h-10 w-10 animate-spin text-accent mb-4" />
-              <p className="font-headline italic">Calculando as repercussões nas redes do mundo...</p>
-            </div>
-          ) : result ? (
-            <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-              <ConsequenceSection title="Curto Prazo (Imediato)" data={result.shortTerm} color="text-accent" />
-              <ConsequenceSection title="Médio Prazo (Semanas)" data={result.mediumTerm} color="text-primary-foreground" />
-              <ConsequenceSection title="Longo Prazo (Meses/Anos)" data={result.longTerm} color="text-muted-foreground" />
-            </div>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground/30 py-20">
-              <Zap size={80} />
-              <p className="mt-4 font-headline text-xl">Aguardando a próxima ação decisiva...</p>
-            </div>
-          )}
+      {loading && (
+        <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
+          <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
+          <p className="font-headline italic text-xs text-center">Calculando as repercussões nas redes do mundo...</p>
         </div>
-      </div>
+      )}
+
+      {result && !loading && (
+        <div className="space-y-4 animate-in slide-in-from-right-2 duration-500">
+          <ConsequenceSection title="Curto Prazo" data={result.shortTerm} color="text-accent" />
+          <ConsequenceSection title="Médio Prazo" data={result.mediumTerm} color="text-primary" />
+          <ConsequenceSection title="Longo Prazo" data={result.longTerm} color="text-muted-foreground" />
+          
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
+            Nova Ação
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
 
 function ConsequenceSection({ title, data, color }: { title: string, data: string[], color: string }) {
   return (
-    <Card className="border-primary/20 bg-card/40">
-      <CardHeader className="py-3 bg-primary/5 border-b border-primary/10">
-        <CardTitle className={`text-lg font-headline ${color}`}>{title}</CardTitle>
+    <Card className="border-white/5 bg-black/20">
+      <CardHeader className="py-2 px-4 border-b border-white/5">
+        <CardTitle className={`text-xs font-headline uppercase tracking-widest ${color}`}>{title}</CardTitle>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="space-y-3">
+      <CardContent className="p-3">
+        <ul className="space-y-2">
           {data.map((item, idx) => (
-            <div key={idx} className="flex gap-3">
-              <div className="mt-1.5 h-1.5 w-1.5 rounded-full bg-accent shrink-0" />
-              <p className="text-sm leading-relaxed">{item}</p>
-            </div>
+            <li key={idx} className="text-[11px] leading-relaxed text-muted-foreground flex gap-2">
+              <span className="text-accent mt-0.5">•</span> {item}
+            </li>
           ))}
-        </div>
+        </ul>
       </CardContent>
     </Card>
   );

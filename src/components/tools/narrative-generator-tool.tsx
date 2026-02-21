@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -7,10 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { generateNarrativeText, type GenerateNarrativeTextOutput } from '@/ai/flows/generate-narrative-text-flow';
-import { FeatureHeader } from '@/components/shared/feature-header';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 
 export function NarrativeGeneratorTool() {
   const [formData, setFormData] = useState({
@@ -45,114 +42,85 @@ export function NarrativeGeneratorTool() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <FeatureHeader 
-        title="Gerador Narrativo" 
-        description="Crie cartas, rumores e documentos imersivos com tons específicos."
-        icon={PenTool}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <Card className="bg-card/50 border-primary/20">
-          <CardContent className="pt-6 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Tipo de Texto</Label>
-                <Select 
-                  value={formData.documentType} 
-                  onValueChange={(val: any) => setFormData({...formData, documentType: val})}
-                >
-                  <SelectTrigger className="bg-background/50">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="carta">Carta</SelectItem>
-                    <SelectItem value="rumor">Rumor</SelectItem>
-                    <SelectItem value="documento">Documento Oficial</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Tom</Label>
-                <Input 
-                  value={formData.tone} 
-                  onChange={(e) => setFormData({...formData, tone: e.target.value})}
-                  placeholder="Ex: Nobre, Ameaçador..."
-                  className="bg-background/50"
-                />
-              </div>
+    <div className="space-y-4">
+      {!result && !loading ? (
+        <div className="space-y-3 animate-in fade-in duration-300">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest">Tipo</label>
+              <Select 
+                value={formData.documentType} 
+                onValueChange={(val: any) => setFormData({...formData, documentType: val})}
+              >
+                <SelectTrigger className="h-8 bg-background/30 border-white/5 text-[10px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="carta">Carta</SelectItem>
+                  <SelectItem value="rumor">Rumor</SelectItem>
+                  <SelectItem value="documento">Documento</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-
-            <div className="space-y-2">
-              <Label>Mensagem Principal</Label>
-              <Textarea 
-                placeholder="O que o texto deve transmitir?"
-                value={formData.messageContent}
-                onChange={(e) => setFormData({...formData, messageContent: e.target.value})}
-                className="bg-background/50 h-24"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Personagens Envolvidos</Label>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold uppercase tracking-widest">Tom</label>
               <Input 
-                value={formData.involvedCharacters} 
-                onChange={(e) => setFormData({...formData, involvedCharacters: e.target.value})}
-                placeholder="NPCs ou Facções interessadas..."
-                className="bg-background/50"
+                value={formData.tone} 
+                onChange={(e) => setFormData({...formData, tone: e.target.value})}
+                placeholder="Ex: Nobre..."
+                className="h-8 bg-background/30 border-white/5 text-[10px]"
               />
             </div>
+          </div>
 
-            <div className="space-y-2">
-              <Label>Lore do Mundo (Contexto)</Label>
-              <Textarea 
-                placeholder="Detalhes do mundo para manter a coerência..."
-                value={formData.worldLore}
-                onChange={(e) => setFormData({...formData, worldLore: e.target.value})}
-                className="bg-background/50 h-32"
-              />
-            </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold uppercase tracking-widest">Conteúdo</label>
+            <Textarea 
+              placeholder="O que o texto deve transmitir?"
+              value={formData.messageContent}
+              onChange={(e) => setFormData({...formData, messageContent: e.target.value})}
+              className="bg-background/30 border-white/5 h-20 text-[10px]"
+            />
+          </div>
 
-            <Button 
-              onClick={handleGenerate} 
-              disabled={loading || !formData.messageContent.trim()}
-              className="w-full bg-primary hover:bg-primary/80 font-headline h-12"
-            >
-              {loading ? <Loader2 className="animate-spin mr-2" /> : <PenTool className="mr-2" />}
-              Redigir Texto
-            </Button>
-          </CardContent>
-        </Card>
-
-        <div className="relative">
-          {loading ? (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground bg-card/20 rounded-xl border border-dashed border-primary/20">
-              <Loader2 className="h-10 w-10 animate-spin text-accent mb-4" />
-              <p className="font-headline italic">As penas mágicas estão escrevendo...</p>
-            </div>
-          ) : result ? (
-            <Card className="h-full bg-white/5 border-accent/20 flex flex-col overflow-hidden animate-in zoom-in-95 duration-300">
-              <div className="p-4 border-b border-white/10 flex justify-between items-center bg-black/20">
-                <span className="text-xs font-bold uppercase tracking-widest text-accent">Resultado Gerado</span>
-                <Button variant="ghost" size="sm" onClick={copyToClipboard} className="text-accent hover:text-accent/80 hover:bg-accent/10">
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  <span className="ml-2">{copied ? 'Copiado' : 'Copiar'}</span>
-                </Button>
-              </div>
-              <CardContent className="flex-1 p-8 overflow-y-auto">
-                <div className="font-body text-lg leading-relaxed whitespace-pre-wrap selection:bg-accent/30">
-                  {result.narrativeText}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground/30 border-2 border-dashed border-primary/10 rounded-xl py-20">
-              <PenTool size={80} />
-              <p className="mt-4 font-headline text-xl">Prepare a tinta e o pergaminho...</p>
-            </div>
-          )}
+          <Button 
+            onClick={handleGenerate} 
+            disabled={loading || !formData.messageContent.trim()}
+            className="w-full bg-primary hover:bg-primary/80 font-headline"
+          >
+            Gerar Documento
+          </Button>
         </div>
-      </div>
+      ) : null}
+
+      {loading && (
+        <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
+          <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
+          <p className="font-headline italic text-xs">As penas mágicas estão escrevendo...</p>
+        </div>
+      )}
+
+      {result && !loading && (
+        <div className="space-y-3 animate-in zoom-in-95 duration-500">
+          <div className="p-4 bg-white/5 border border-white/5 rounded-lg relative group">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={copyToClipboard} 
+              className="absolute top-2 right-2 h-6 w-6 text-accent opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              {copied ? <Check size={12} /> : <Copy size={12} />}
+            </Button>
+            <div className="font-body text-xs leading-relaxed whitespace-pre-wrap text-muted-foreground">
+              {result.narrativeText}
+            </div>
+          </div>
+          
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
+            Novo Texto
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

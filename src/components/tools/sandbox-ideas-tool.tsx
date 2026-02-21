@@ -1,13 +1,11 @@
-
 'use client';
 
 import React, { useState } from 'react';
-import { Map, Send, Loader2, Users, Target, Info } from 'lucide-react';
+import { Map, Loader2, Target, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { generateSandboxIdeas, type GenerateSandboxIdeasOutput } from '@/ai/flows/generate-sandbox-ideas';
-import { FeatureHeader } from '@/components/shared/feature-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 export function SandboxIdeasTool() {
@@ -33,146 +31,90 @@ export function SandboxIdeasTool() {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <FeatureHeader 
-        title="Ideias Sandbox" 
-        description="Explore múltiplos caminhos narrativos e agendas ocultas para sua campanha."
-        icon={Map}
-      />
-
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-        <div className="lg:col-span-4 space-y-4">
-          <Card className="bg-card/50 border-primary/20 sticky top-4">
-            <CardHeader>
-              <CardTitle className="font-headline text-lg">Cenário da Aventura</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Textarea 
-                  placeholder="Qual a situação atual do sandbox?"
-                  value={formData.situation}
-                  onChange={(e) => setFormData({...formData, situation: e.target.value})}
-                  className="bg-background/50 min-h-[120px]"
-                />
-              </div>
-              <div className="space-y-2">
-                <Textarea 
-                  placeholder="Contexto de Facções (Opcional)"
-                  value={formData.factionsContext}
-                  onChange={(e) => setFormData({...formData, factionsContext: e.target.value})}
-                  className="bg-background/50 h-24"
-                />
-              </div>
-              <div className="space-y-2">
-                <Textarea 
-                  placeholder="Eventos Passados (Opcional)"
-                  value={formData.pastEventsSummary}
-                  onChange={(e) => setFormData({...formData, pastEventsSummary: e.target.value})}
-                  className="bg-background/50 h-24"
-                />
-              </div>
-              <Button 
-                onClick={handleGenerate} 
-                disabled={loading || !formData.situation.trim()}
-                className="w-full bg-primary hover:bg-primary/80 font-headline"
-              >
-                {loading ? <Loader2 className="animate-spin mr-2" /> : <Map className="mr-2" />}
-                Mapear Possibilidades
-              </Button>
-            </CardContent>
-          </Card>
+    <div className="space-y-4">
+      {!result && !loading ? (
+        <div className="space-y-3 animate-in fade-in duration-300">
+          <Textarea 
+            placeholder="Qual a situação atual do sandbox?"
+            value={formData.situation}
+            onChange={(e) => setFormData({...formData, situation: e.target.value})}
+            className="bg-background/30 border-white/5 h-24 text-xs"
+          />
+          <Textarea 
+            placeholder="Contexto de Facções (Opcional)"
+            value={formData.factionsContext}
+            onChange={(e) => setFormData({...formData, factionsContext: e.target.value})}
+            className="bg-background/30 border-white/5 h-16 text-xs"
+          />
+          <Button 
+            onClick={handleGenerate} 
+            disabled={loading || !formData.situation.trim()}
+            className="w-full bg-primary hover:bg-primary/80 font-headline"
+          >
+            Mapear Possibilidades
+          </Button>
         </div>
+      ) : null}
 
-        <div className="lg:col-span-8">
-          {loading ? (
-            <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
-              <Loader2 className="h-10 w-10 animate-spin text-accent mb-4" />
-              <p className="font-headline italic">Visualizando as ramificações do mundo...</p>
-            </div>
-          ) : result ? (
-            <div className="space-y-6">
-              <Card className="border-accent/30 bg-accent/5">
-                <CardHeader>
-                  <CardTitle className="text-md font-headline flex items-center gap-2">
-                    <Info className="h-4 w-4 text-accent" />
-                    Análise do Cenário
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm">
-                  {result.analysis}
-                </CardContent>
-              </Card>
-
-              <Accordion type="single" collapsible className="space-y-4">
-                {result.possiblePaths.map((path, idx) => (
-                  <AccordionItem key={idx} value={`path-${idx}`} className="border rounded-lg px-4 bg-card/40 border-primary/20">
-                    <AccordionTrigger className="hover:no-underline py-4">
-                      <div className="flex flex-col items-start text-left">
-                        <span className="text-accent text-xs font-bold uppercase tracking-wider mb-1">Caminho {idx + 1}</span>
-                        <span className="font-headline text-lg">{path.description.slice(0, 60)}...</span>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="pb-6 space-y-6">
-                      <div className="text-sm border-l-2 border-accent pl-4 py-2 bg-accent/5 italic mb-4">
-                        {path.description}
-                      </div>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="space-y-2">
-                          <h4 className="font-headline text-primary-foreground/70 uppercase text-xs font-bold tracking-widest border-b border-primary/20 pb-1">Curto Prazo</h4>
-                          <p className="text-xs text-muted-foreground">{path.impacts.shortTerm}</p>
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-headline text-primary-foreground/70 uppercase text-xs font-bold tracking-widest border-b border-primary/20 pb-1">Médio Prazo</h4>
-                          <p className="text-xs text-muted-foreground">{path.impacts.mediumTerm}</p>
-                        </div>
-                        <div className="space-y-2">
-                          <h4 className="font-headline text-primary-foreground/70 uppercase text-xs font-bold tracking-widest border-b border-primary/20 pb-1">Longo Prazo</h4>
-                          <p className="text-xs text-muted-foreground">{path.impacts.longTerm}</p>
-                        </div>
-                      </div>
-
-                      <div className="space-y-4 pt-4 border-t border-primary/10">
-                        <h4 className="font-headline text-accent flex items-center gap-2">
-                          <Target className="h-4 w-4" />
-                          Agendas &amp; Intrigas
-                        </h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-xs">
-                          <div className="space-y-1">
-                            <span className="text-green-400 font-bold uppercase text-[10px]">Quem ganha</span>
-                            <p>{path.agendas.whoGains.join(', ')}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-red-400 font-bold uppercase text-[10px]">Quem perde</span>
-                            <p>{path.agendas.whoLoses.join(', ')}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-orange-400 font-bold uppercase text-[10px]">Falsos ganhadores</span>
-                            <p>{path.agendas.whoSeemsToGainButLoses.join(', ')}</p>
-                          </div>
-                          <div className="space-y-1">
-                            <span className="text-purple-400 font-bold uppercase text-[10px]">Manipuladores</span>
-                            <p>{path.agendas.manipulators.join(', ')}</p>
-                          </div>
-                        </div>
-                        <div className="p-3 bg-destructive/10 rounded-md border border-destructive/20">
-                          <span className="text-destructive font-bold text-[10px] uppercase block mb-1">Traições Possíveis</span>
-                          <p className="text-xs italic">{path.agendas.betrayals}</p>
-                        </div>
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </div>
-          ) : (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground/30 py-20">
-              <Map size={80} />
-              <p className="mt-4 font-headline text-xl">Trace novas rotas para sua história...</p>
-            </div>
-          )}
+      {loading && (
+        <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
+          <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
+          <p className="font-headline italic text-xs">Visualizando as ramificações...</p>
         </div>
-      </div>
+      )}
+
+      {result && !loading && (
+        <div className="space-y-3 animate-in slide-in-from-bottom-2 duration-500">
+          <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg">
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-accent flex items-center gap-1 mb-1">
+              <Info size={10} /> Análise
+            </h4>
+            <p className="text-[10px] leading-relaxed text-muted-foreground">{result.analysis}</p>
+          </div>
+
+          <Accordion type="single" collapsible className="space-y-2">
+            {result.possiblePaths.map((path, idx) => (
+              <AccordionItem key={idx} value={`path-${idx}`} className="border border-white/5 rounded-lg bg-black/20">
+                <AccordionTrigger className="hover:no-underline py-2 px-3 text-xs font-headline text-accent/80">
+                  Caminho {idx + 1}: {path.description.slice(0, 30)}...
+                </AccordionTrigger>
+                <AccordionContent className="p-3 pt-0 space-y-3">
+                  <p className="text-[10px] italic text-muted-foreground border-l border-accent/30 pl-2">
+                    {path.description}
+                  </p>
+                  
+                  <div className="grid grid-cols-1 gap-2 border-t border-white/5 pt-2">
+                    <div className="space-y-1">
+                      <h5 className="text-[9px] font-bold uppercase tracking-widest text-accent/60">Impacto Curto/Médio</h5>
+                      <p className="text-[9px] text-muted-foreground">{path.impacts.shortTerm}</p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2 pt-2 border-t border-white/5">
+                    <h5 className="text-[9px] font-bold uppercase tracking-widest text-purple-400 flex items-center gap-1">
+                      <Target size={8} /> Intriga
+                    </h5>
+                    <div className="grid grid-cols-2 gap-2 text-[9px]">
+                      <div>
+                        <span className="text-green-500/70 font-bold block">Ganha:</span>
+                        <p className="text-muted-foreground">{path.agendas.whoGains.slice(0, 2).join(', ')}</p>
+                      </div>
+                      <div>
+                        <span className="text-red-500/70 font-bold block">Traição:</span>
+                        <p className="text-muted-foreground truncate">{path.agendas.betrayals.slice(0, 40)}...</p>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            ))}
+          </Accordion>
+          
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
+            Novo Cenário
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
