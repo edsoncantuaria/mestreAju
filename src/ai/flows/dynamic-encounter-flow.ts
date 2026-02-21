@@ -1,14 +1,20 @@
 'use server';
 /**
- * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais.
+ * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais e cálculo preciso de CR.
  */
 
 import {ai, fetchDndRuleTool} from '@/ai/genkit';
 import {z} from 'genkit';
 
+const PartyMemberSchema = z.object({
+  name: z.string().optional(),
+  level: z.number().min(1).max(20),
+  race: z.string().optional(),
+  class: z.string().optional(),
+});
+
 const PartyInfoSchema = z.object({
-  playerCount: z.number().default(4),
-  averageLevel: z.number().default(1),
+  members: z.array(PartyMemberSchema).min(1).describe('A lista de personagens jogadores e seus níveis/raças.'),
 });
 
 const DynamicEncounterInputSchema = z.object({
@@ -22,14 +28,15 @@ export type DynamicEncounterInput = z.infer<typeof DynamicEncounterInputSchema>;
 const OptionSchema = z.object({
   label: z.string().describe('Título curto da opção.'),
   description: z.string().describe('O que acontece nesta opção.'),
-  difficulty: z.enum(['Muito Fácil', 'Fácil', 'Médio', 'Difícil', 'Mortal']).describe('Dificuldade relativa ao nível do grupo.'),
+  difficulty: z.enum(['Muito Fácil', 'Fácil', 'Médio', 'Difícil', 'Mortal']).describe('Dificuldade baseada no orçamento de XP do grupo.'),
+  xpValue: z.number().optional().describe('Valor total de XP planejado para o encontro.'),
 });
 
 const DynamicEncounterOutputSchema = z.object({
   narrativa: z.string().describe('Texto descrevendo o desenrolar da cena atual.'),
   opcoes: z.array(OptionSchema).min(2).max(4).describe('Próximos passos possíveis.'),
   detalheOculto: z.string().optional().describe('Um segredo, item ou gancho encontrado.'),
-  sugestaoMecanica: z.string().optional().describe('Sugestão de CD (Dificuldade) ou monstros específicos baseados nas regras oficiais.'),
+  sugestaoMecanica: z.string().optional().describe('Sugestão de CD ou monstros específicos com base no XP total permitido.'),
 });
 export type DynamicEncounterOutput = z.infer<typeof DynamicEncounterOutputSchema>;
 
@@ -43,18 +50,24 @@ const prompt = ai.definePrompt({
   input: {schema: DynamicEncounterInputSchema},
   output: {schema: DynamicEncounterOutputSchema},
   prompt: `Você é o Copiloto de Sessão Ativa para D&D 5e.
-O grupo tem {{partyInfo.playerCount}} jogadores de nível {{partyInfo.averageLevel}}.
+Você deve calcular a dificuldade dos encontros usando o Orçamento de XP oficial do DMG 5e.
+
+COMPONENTES DO GRUPO:
+{{#each partyInfo.members}}
+- {{#if name}}{{name}}: {{/if}}Nível {{level}} {{race}} {{class}}
+{{/each}}
 
 SITUAÇÃO ATUAL: {{{currentSituation}}}
 {{#if lastChoice}}ESCOLHA ANTERIOR: {{{lastChoice}}}{{/if}}
 {{#if customInput}}O MESTRE DECIDIU: {{{customInput}}}{{/if}}
 
-Gere o próximo passo da narrativa de forma fluida. 
-As opções devem ser variadas (Combate, Social, Exploração).
-Considere o nível do grupo para sugerir a dificuldade e monstros.
+INSTRUÇÕES DE CÁLCULO (DMG):
+1. Calcule o limite de XP (Easy/Medium/Hard/Deadly) para cada personagem e some-os.
+2. Ao sugerir encontros de combate, use monstros cujo XP total (ajustado pelo multiplicador de número de monstros) se encaixe nesses limites.
+3. Considere as habilidades de raça (ex: Changeling Shapechanger) ao sugerir opções sociais ou de infiltração.
 
-**IMPORTANTE**: Você tem acesso às regras oficiais do D&D 5e via ferramenta fetchDndRule. 
-Se a situação envolver mecânicas complexas (como escalada, luz, cobertura ou condições), use a ferramenta para garantir que a dificuldade e as sugestões mecânicas estejam corretas.
+Gere o próximo passo da narrativa de forma fluida.
+As opções devem ser variadas. Cite monstros reais do SRD 5e e suas dificuldades.
 
 Sua resposta deve ser em Português Brasileiro.`,
 });

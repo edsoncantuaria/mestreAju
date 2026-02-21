@@ -25,7 +25,9 @@ import {
   Lock,
   LogOut,
   UserPlus,
-  UserCircle
+  UserCircle,
+  Trash2,
+  User
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -48,6 +50,14 @@ import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
 type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'rules' | 'entities';
+
+interface PartyMember {
+  id: string;
+  name: string;
+  level: number;
+  race: string;
+  class: string;
+}
 
 function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -161,7 +171,9 @@ function ScreenDungeonMasterContent() {
   const { toast } = useToast();
   
   const [activeTools, setActiveTools] = useState<ToolId[]>(['live', 'entities']);
-  const [partyInfo, setPartyInfo] = useState({ playerCount: 4, averageLevel: 1 });
+  const [partyMembers, setPartyMembers] = useState<PartyMember[]>([
+    { id: '1', name: 'Herói 1', level: 1, race: 'Humano', class: 'Guerreiro' }
+  ]);
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
@@ -269,6 +281,27 @@ function ScreenDungeonMasterContent() {
     toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
   };
 
+  const addPartyMember = () => {
+    const newMember: PartyMember = {
+      id: Date.now().toString(),
+      name: `Herói ${partyMembers.length + 1}`,
+      level: 1,
+      race: 'Humano',
+      class: 'Guerreiro'
+    };
+    setPartyMembers([...partyMembers, newMember]);
+  };
+
+  const updateMember = (id: string, updates: Partial<PartyMember>) => {
+    setPartyMembers(partyMembers.map(m => m.id === id ? { ...m, ...updates } : m));
+  };
+
+  const removeMember = (id: string) => {
+    if (partyMembers.length > 1) {
+      setPartyMembers(partyMembers.filter(m => m.id !== id));
+    }
+  };
+
   useEffect(() => {
     if (user && !activeSession && !loadingSessions && (!sessions || sessions.length === 0)) {
       setIsModalOpen(true);
@@ -290,6 +323,8 @@ function ScreenDungeonMasterContent() {
   if (!user) {
     return <AuthScreen />;
   }
+
+  const avgLevel = Math.round(partyMembers.reduce((acc, m) => acc + m.level, 0) / partyMembers.length);
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/30">
@@ -350,32 +385,63 @@ function ScreenDungeonMasterContent() {
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="rounded-full border-white/10 gap-2 text-[10px] font-bold h-9 bg-black/20">
                 <Users size={14} className="text-accent" />
-                <span className="hidden md:inline">{partyInfo.playerCount}p / Nvl {partyInfo.averageLevel}</span>
+                <span className="hidden md:inline">{partyMembers.length} Heróis / Nvl {avgLevel}</span>
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 bg-card border-white/10 shadow-2xl">
-              <div className="space-y-4">
-                <h4 className="font-headline font-bold text-sm text-accent">Status do Grupo</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold uppercase text-muted-foreground">Jogadores</label>
-                    <Input 
-                      type="number" 
-                      value={partyInfo.playerCount} 
-                      onChange={(e) => setPartyInfo({...partyInfo, playerCount: parseInt(e.target.value) || 1})}
-                      className="h-8 text-xs bg-black/20"
-                    />
+            <PopoverContent className="w-80 bg-card border-white/10 shadow-2xl p-0 overflow-hidden">
+              <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                <h4 className="font-headline font-bold text-sm text-accent">Orçamento do Grupo</h4>
+                <Button variant="ghost" size="icon" className="h-6 w-6 text-accent" onClick={addPartyMember}>
+                  <Plus size={14} />
+                </Button>
+              </div>
+              <div className="max-h-[300px] overflow-y-auto p-4 space-y-3 custom-scrollbar">
+                {partyMembers.map((member) => (
+                  <div key={member.id} className="flex gap-2 items-start p-2 rounded-lg bg-black/20 border border-white/5 group">
+                    <div className="flex-1 space-y-2">
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Nome"
+                          value={member.name}
+                          onChange={(e) => updateMember(member.id, { name: e.target.value })}
+                          className="h-7 text-[10px] bg-black/40 border-white/10"
+                        />
+                        <Input 
+                          type="number"
+                          placeholder="Nvl"
+                          value={member.level}
+                          onChange={(e) => updateMember(member.id, { level: parseInt(e.target.value) || 1 })}
+                          className="h-7 w-12 text-[10px] bg-black/40 border-white/10"
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Raça (ex: Changeling)"
+                          value={member.race}
+                          onChange={(e) => updateMember(member.id, { race: e.target.value })}
+                          className="h-7 text-[10px] bg-black/40 border-white/10"
+                        />
+                        <Input 
+                          placeholder="Classe"
+                          value={member.class}
+                          onChange={(e) => updateMember(member.id, { class: e.target.value })}
+                          className="h-7 text-[10px] bg-black/40 border-white/10"
+                        />
+                      </div>
+                    </div>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => removeMember(member.id)}
+                    >
+                      <Trash2 size={12} />
+                    </Button>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-[9px] font-bold uppercase text-muted-foreground">Nível Médio</label>
-                    <Input 
-                      type="number" 
-                      value={partyInfo.averageLevel} 
-                      onChange={(e) => setPartyInfo({...partyInfo, averageLevel: parseInt(e.target.value) || 1})}
-                      className="h-8 text-xs bg-black/20"
-                    />
-                  </div>
-                </div>
+                ))}
+              </div>
+              <div className="p-3 bg-accent/5 text-[9px] text-accent/70 font-bold border-t border-white/5 uppercase tracking-tighter text-center">
+                O cálculo de dificuldade será ajustado automaticamente
               </div>
             </PopoverContent>
           </Popover>
@@ -466,7 +532,7 @@ function ScreenDungeonMasterContent() {
                   </div>
                   <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1 min-h-[450px]">
                     <tool.component 
-                      partyInfo={partyInfo} 
+                      partyInfo={{ members: partyMembers }} 
                       sharedContext={sharedContext}
                       activeSession={activeSession}
                       onContextAction={handleToolAction}
@@ -562,8 +628,8 @@ function ScreenDungeonMasterContent() {
 
       <footer className="h-8 border-t border-white/5 bg-black/60 px-6 flex items-center justify-between text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
         <div className="flex gap-4">
-          <span className="flex items-center gap-1"><Shield size={10} className="text-accent" /> CR: {partyInfo.averageLevel}</span>
-          <span className="flex items-center gap-1"><Users size={10} className="text-accent" /> PARTY: {partyInfo.playerCount}</span>
+          <span className="flex items-center gap-1"><Shield size={10} className="text-accent" /> CR: {avgLevel}</span>
+          <span className="flex items-center gap-1"><Users size={10} className="text-accent" /> PARTY: {partyMembers.length}</span>
         </div>
         <div className="flex gap-4">
           <span className="text-accent font-bold">

@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface LiveSessionToolProps {
-  partyInfo: { playerCount: number; averageLevel: number };
+  partyInfo: { members: Array<{ level: number; race?: string; class?: string }> };
   activeSession: any | null;
   onContextAction: (toolId: any, data: any) => void;
 }
@@ -163,7 +163,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
           {loading ? (
             <div className="py-6 flex flex-col items-center justify-center text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin text-accent mb-2" />
-              <p className="text-[10px] font-headline">Ramificando o destino com base no seu mundo...</p>
+              <p className="text-[10px] font-headline">Calculando orçamentos de XP e ramificando...</p>
             </div>
           ) : (
             <div className="space-y-3 animate-in fade-in zoom-in-95 duration-300">
@@ -216,7 +216,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
             </Button>
             {lastStep?.sugestaoMecanica && (
               <div className="text-[9px] text-accent font-bold px-2 py-1 bg-accent/5 rounded border border-accent/20">
-                INFO: {lastStep.sugestaoMecanica}
+                SRD INFO: {lastStep.sugestaoMecanica}
               </div>
             )}
           </div>
