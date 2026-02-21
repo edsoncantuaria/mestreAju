@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -15,7 +14,8 @@ import {
   Users,
   Shield,
   Activity,
-  Link as LinkIcon
+  Link as LinkIcon,
+  BookOpen
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -23,19 +23,20 @@ import { NarrativeGeneratorTool } from '@/components/tools/narrative-generator-t
 import { SandboxIdeasTool } from '@/components/tools/sandbox-ideas-tool';
 import { ConsequencesTool } from '@/components/tools/consequences-tool';
 import { LiveSessionTool } from '@/components/tools/live-session-tool';
+import { PrepareSessionTool } from '@/components/tools/prepare-session-tool';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { FirebaseClientProvider } from '@/firebase';
 
-type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences';
+type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'prepare';
 
-export default function ScreenDungeonMaster() {
-  const [activeTools, setActiveTools] = useState<ToolId[]>(['live', 'sandbox']);
+function ScreenDungeonMasterContent() {
+  const [activeTools, setActiveTools] = useState<ToolId[]>(['prepare', 'live']);
   const [partyInfo, setPartyInfo] = useState({ playerCount: 4, averageLevel: 1 });
   
-  // Shared Context State for "Mind Map" integration
   const [sharedContext, setSharedContext] = useState({
     lastNarrative: '',
     lastSecret: '',
@@ -44,6 +45,13 @@ export default function ScreenDungeonMaster() {
   });
 
   const tools = [
+    { 
+      id: 'prepare', 
+      label: 'Preparar', 
+      icon: BookOpen, 
+      component: (props: any) => <PrepareSessionTool {...props} />, 
+      color: 'text-indigo-400' 
+    },
     { 
       id: 'live', 
       label: 'Ativo', 
@@ -102,7 +110,6 @@ export default function ScreenDungeonMaster() {
     if (!activeTools.includes(targetToolId)) {
       setActiveTools(prev => [...prev, targetToolId]);
     }
-    // We update the shared context which tools will pick up
     updateSharedContext(data);
   };
 
@@ -119,7 +126,7 @@ export default function ScreenDungeonMaster() {
           </div>
         </div>
 
-        <nav className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+        <nav className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-[50%] no-scrollbar">
           <TooltipProvider>
             {tools.map((tool) => {
               const isActive = activeTools.includes(tool.id);
@@ -131,7 +138,7 @@ export default function ScreenDungeonMaster() {
                       size="sm"
                       onClick={() => toggleTool(tool.id)}
                       className={cn(
-                        "h-10 px-3 md:px-4 rounded-lg transition-all flex items-center gap-2 font-headline",
+                        "h-10 px-3 md:px-4 rounded-lg transition-all flex items-center gap-2 font-headline shrink-0",
                         isActive ? "bg-primary text-white" : "text-muted-foreground hover:text-white"
                       )}
                     >
@@ -232,7 +239,7 @@ export default function ScreenDungeonMaster() {
                       </Button>
                     </div>
                   </div>
-                  <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1">
+                  <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1 min-h-[400px]">
                     <tool.component 
                       partyInfo={partyInfo} 
                       sharedContext={sharedContext}
@@ -256,5 +263,13 @@ export default function ScreenDungeonMaster() {
         </div>
       </footer>
     </div>
+  );
+}
+
+export default function ScreenDungeonMaster() {
+  return (
+    <FirebaseClientProvider>
+      <ScreenDungeonMasterContent />
+    </FirebaseClientProvider>
   );
 }

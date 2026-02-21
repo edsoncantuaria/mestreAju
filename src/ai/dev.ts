@@ -7,3 +7,4 @@ import '@/ai/flows/summarize-session.ts';
 import '@/ai/flows/generate-sandbox-ideas.ts';
 import '@/ai/flows/analyze-context.ts';
 import '@/ai/flows/dynamic-encounter-flow.ts';
+import '@/ai/flows/prepare-session-flow.ts';
