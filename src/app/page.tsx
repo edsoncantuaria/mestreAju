@@ -20,7 +20,11 @@ import {
   FolderOpen,
   ChevronRight,
   Loader2,
-  LogIn
+  LogIn,
+  Mail,
+  Lock,
+  LogOut,
+  UserPlus
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -36,27 +40,129 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { FirebaseClientProvider, useUser, useFirestore, useCollection, useMemoFirebase, useAuth, initiateAnonymousSignIn } from '@/firebase';
+import { FirebaseClientProvider, useUser, useFirestore, useCollection, useMemoFirebase, useAuth, initiateEmailSignIn, initiateEmailSignUp, initiateAnonymousSignIn } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
+import { signOut } from 'firebase/auth';
+import { useToast } from '@/hooks/use-toast';
 
 type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'rules';
+
+function AuthScreen() {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const auth = useAuth();
+  const { toast } = useToast();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email || !password) return;
+
+    if (isLogin) {
+      initiateEmailSignIn(auth, email, password);
+      toast({ title: "Iniciando Sessão...", description: "Conectando ao seu Grimório Cloud." });
+    } else {
+      initiateEmailSignUp(auth, email, password);
+      toast({ title: "Criando Conta...", description: "Preparando seu espaço de mestre." });
+    }
+  };
+
+  const handleGuest = () => {
+    initiateAnonymousSignIn(auth);
+    toast({ title: "Entrando como Convidado", description: "Cuidado: dados de convidados podem ser perdidos ao limpar o cache." });
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-[radial-gradient(circle_at_50%_50%,rgba(139,0,0,0.1),transparent_50%)]">
+      <div className="w-full max-w-md space-y-8 animate-in fade-in zoom-in-95 duration-700">
+        <div className="text-center space-y-4">
+          <div className="mx-auto w-20 h-20 rounded-3xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 ring-4 ring-white/5">
+            <Sword size={40} className="text-white" />
+          </div>
+          <div>
+            <h1 className="text-4xl font-headline font-bold text-accent tracking-tight">MestreAju</h1>
+            <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground font-bold mt-2">Copiloto Supremo de Sandbox</p>
+          </div>
+        </div>
+
+        <div className="glass-card p-8 rounded-3xl border border-white/10 shadow-2xl space-y-6">
+          <div className="flex bg-black/40 p-1 rounded-xl border border-white/5">
+            <button 
+              onClick={() => setIsLogin(true)}
+              className={cn("flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all", isLogin ? "bg-primary text-white shadow-lg" : "text-muted-foreground hover:text-white")}
+            >
+              Login
+            </button>
+            <button 
+              onClick={() => setIsLogin(false)}
+              className={cn("flex-1 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition-all", !isLogin ? "bg-primary text-white shadow-lg" : "text-muted-foreground hover:text-white")}
+            >
+              Cadastro
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">E-mail do Mestre</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 text-muted-foreground" size={16} />
+                <Input 
+                  type="email" 
+                  placeholder="exemplo@mestre.com" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="pl-10 h-12 bg-black/40 border-white/5 focus:border-primary/50"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Senha Mágica</label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 text-muted-foreground" size={16} />
+                <Input 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 h-12 bg-black/40 border-white/5 focus:border-primary/50"
+                />
+              </div>
+            </div>
+            <Button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-white font-headline text-lg group">
+              {isLogin ? 'Entrar no Grimório' : 'Criar Novo Registro'}
+              <ChevronRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+            </Button>
+          </form>
+
+          <div className="relative py-2">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/5"></div></div>
+            <div className="relative flex justify-center text-[10px] uppercase font-bold text-muted-foreground"><span className="bg-card px-2">Ou</span></div>
+          </div>
+
+          <Button variant="ghost" onClick={handleGuest} className="w-full h-10 text-muted-foreground hover:text-accent font-bold text-[10px] uppercase tracking-widest">
+            Entrar como Convidado
+          </Button>
+        </div>
+
+        <p className="text-center text-[10px] text-muted-foreground/40 italic">
+          "Suas crônicas são salvas e sincronizadas via Firebase Cloud."
+        </p>
+      </div>
+    </div>
+  );
+}
 
 function ScreenDungeonMasterContent() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const db = useFirestore();
+  const { toast } = useToast();
+  
   const [activeTools, setActiveTools] = useState<ToolId[]>(['live', 'rules']);
   const [partyInfo, setPartyInfo] = useState({ playerCount: 4, averageLevel: 1 });
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
-
-  // Auto-login to ensure we have a UID for Firestore paths
-  useEffect(() => {
-    if (!user && !isUserLoading && auth) {
-      initiateAnonymousSignIn(auth);
-    }
-  }, [user, isUserLoading, auth]);
 
   // Memoized query to fetch sessions from Firestore
   const sessionsQuery = useMemoFirebase(() => {
@@ -138,6 +244,7 @@ function ScreenDungeonMasterContent() {
     setActiveSession(session);
     setIsModalOpen(false);
     setShowNewSessionForm(false);
+    toast({ title: "Mundo Carregado", description: `A crônica "${session.title}" está ativa.` });
   };
 
   const handleToolAction = (targetToolId: ToolId, data: any) => {
@@ -145,6 +252,12 @@ function ScreenDungeonMasterContent() {
       setActiveTools(prev => [...prev, targetToolId]);
     }
     setSharedContext(prev => ({ ...prev, ...data }));
+  };
+
+  const handleSignOut = () => {
+    signOut(auth);
+    setActiveSession(null);
+    toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
   };
 
   // Force session selection on startup after login
@@ -164,6 +277,10 @@ function ScreenDungeonMasterContent() {
         <p className="font-headline text-accent animate-pulse tracking-widest uppercase text-xs">Despertando o Grimório Cloud...</p>
       </div>
     );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
   }
 
   return (
@@ -191,7 +308,7 @@ function ScreenDungeonMasterContent() {
           </div>
         </div>
 
-        <nav className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-[50%] no-scrollbar">
+        <nav className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-[40%] no-scrollbar">
           <TooltipProvider>
             {tools.map((tool) => {
               const isActive = activeTools.includes(tool.id);
@@ -254,9 +371,39 @@ function ScreenDungeonMasterContent() {
               </div>
             </PopoverContent>
           </Popover>
-          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
-            <LogIn size={14} className="text-muted-foreground" />
-          </div>
+          
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="icon" className="w-9 h-9 rounded-full bg-white/5 border border-white/10 overflow-hidden">
+                {user.photoURL ? (
+                  <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center bg-primary/20 text-primary font-bold text-xs">
+                    {user.email?.[0].toUpperCase() || '?'}
+                  </div>
+                )}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 bg-card border-white/10 shadow-2xl" align="end">
+              <div className="space-y-3">
+                <div className="flex flex-col">
+                  <span className="text-xs font-bold text-foreground truncate">{user.email}</span>
+                  <span className="text-[10px] text-muted-foreground uppercase tracking-widest">
+                    {user.isAnonymous ? 'Convidado' : 'Mestre Registrado'}
+                  </span>
+                </div>
+                <div className="h-px bg-white/5" />
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={handleSignOut}
+                  className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10 text-xs font-bold"
+                >
+                  <LogOut size={14} className="mr-2" /> Encerrar Sessão
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </header>
 
@@ -416,7 +563,7 @@ function ScreenDungeonMasterContent() {
           </span>
           <span className="opacity-30">|</span>
           <span className="flex items-center gap-1 text-green-500">
-             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> CLOUD SYNC: {user ? 'ON (' + user.uid.substring(0,6) + ')' : 'OFF'}
+             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> CLOUD SYNC: {user.isAnonymous ? 'TEMPORÁRIO' : 'SEGURO'} ({user.uid.substring(0,6)})
           </span>
         </div>
       </footer>
