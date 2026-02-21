@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Book, Search, Loader2, Info, Skull, Shield, Zap, Swords } from 'lucide-react';
+import { Book, Search, Loader2, Info, Skull, Shield, Zap, Swords, Terminal, Check, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export function RulesLookupTool() {
   const [query, setQuery] = useState('');
@@ -111,6 +113,9 @@ function RuleView({ result }: { result: any }) {
 }
 
 function MonsterStatblock({ result }: { result: any }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
   if (!result) return <EmptyState icon={Skull} label="Bestiário SRD" />;
   if (result.error) return <ErrorState message={result.error} />;
 
@@ -123,6 +128,32 @@ function MonsterStatblock({ result }: { result: any }) {
     { label: 'CAR', val: result.charisma, mod: Math.floor((result.charisma - 10) / 2) },
   ];
 
+  const generateRoll20Macro = () => {
+    const modStr = (val: number) => {
+      const mod = Math.floor((val - 10) / 2);
+      return `${val} (${mod >= 0 ? '+' : ''}${mod})`;
+    };
+
+    let macro = `&{template:default} {{name=BESTIÁRIO: ${result.name}}} {{Tipo=${result.size} ${result.type}}} {{Alinhamento=${result.alignment}}} {{CA=${result.armor_class}}} {{HP=${result.hit_points} (${result.hit_dice})}} {{Deslocamento=${result.speed.walk || result.speed}}} {{CR=${result.challenge_rating}}}`;
+    
+    macro += ` {{ATRIBUTOS=FOR ${modStr(result.strength)} | DES ${modStr(result.dexterity)} | CON ${modStr(result.constitution)} | INT ${modStr(result.intelligence)} | SAB ${modStr(result.wisdom)} | CAR ${modStr(result.charisma)}}}`;
+
+    if (result.actions && result.actions.length > 0) {
+      const actionsSummary = result.actions.slice(0, 3).map((a: any) => `**${a.name}**: ${a.desc.substring(0, 100)}...`).join(' | ');
+      macro += ` {{Ações=${actionsSummary}}}`;
+    }
+
+    return macro;
+  };
+
+  const copyMacro = () => {
+    const macro = generateRoll20Macro();
+    navigator.clipboard.writeText(macro);
+    setCopied(true);
+    toast({ title: "Macro de Monstro Gerada!", description: "Ficha rápida copiada para o chat do Roll20." });
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <Card className="border-accent/20 bg-card/60 animate-in zoom-in-95 overflow-hidden">
       <div className="h-1 bg-accent w-full" />
@@ -132,8 +163,25 @@ function MonsterStatblock({ result }: { result: any }) {
             <CardTitle className="text-lg font-headline text-accent italic">{result.name}</CardTitle>
             <p className="text-[9px] uppercase tracking-widest text-muted-foreground">{result.size} {result.type}, {result.alignment}</p>
           </div>
-          <div className="text-right">
-            <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-1 rounded">CR {result.challenge_rating}</span>
+          <div className="flex gap-2">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="icon" 
+                    className="h-8 w-8 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
+                    onClick={copyMacro}
+                  >
+                    {copied ? <Check size={14} /> : <Terminal size={14} />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p className="text-[10px]">Gerar Ficha Roll20</p></TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <div className="text-right">
+              <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-1 rounded">CR {result.challenge_rating}</span>
+            </div>
           </div>
         </div>
       </CardHeader>
