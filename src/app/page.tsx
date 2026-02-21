@@ -24,7 +24,8 @@ import {
   Mail,
   Lock,
   LogOut,
-  UserPlus
+  UserPlus,
+  UserCircle
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -34,6 +35,7 @@ import { ConsequencesTool } from '@/components/tools/consequences-tool';
 import { LiveSessionTool } from '@/components/tools/live-session-tool';
 import { PrepareSessionTool } from '@/components/tools/prepare-session-tool';
 import { RulesLookupTool } from '@/components/tools/rules-lookup-tool';
+import { NpcFactionManagerTool } from '@/components/tools/npc-faction-manager-tool';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -45,7 +47,7 @@ import { collection, query, orderBy } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
-type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'rules';
+type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'rules' | 'entities';
 
 function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
@@ -158,7 +160,7 @@ function ScreenDungeonMasterContent() {
   const db = useFirestore();
   const { toast } = useToast();
   
-  const [activeTools, setActiveTools] = useState<ToolId[]>(['live', 'rules']);
+  const [activeTools, setActiveTools] = useState<ToolId[]>(['live', 'entities']);
   const [partyInfo, setPartyInfo] = useState({ playerCount: 4, averageLevel: 1 });
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -187,50 +189,57 @@ function ScreenDungeonMasterContent() {
       id: 'live', 
       label: 'Sessão Ativa', 
       icon: Activity, 
-      component: (props: any) => <LiveSessionTool {...props} activeSession={activeSession} />, 
-      color: 'text-rose-500' 
+      color: 'text-rose-500',
+      component: (props: any) => <LiveSessionTool {...props} activeSession={activeSession} />
+    },
+    { 
+      id: 'entities', 
+      label: 'Grimório', 
+      icon: Users, 
+      color: 'text-sky-400',
+      component: (props: any) => <NpcFactionManagerTool {...props} activeSession={activeSession} />
     },
     { 
       id: 'rules', 
       label: 'Enciclopédia', 
       icon: Book, 
-      component: (props: any) => <RulesLookupTool {...props} />, 
-      color: 'text-cyan-400' 
+      color: 'text-cyan-400',
+      component: (props: any) => <RulesLookupTool {...props} />
     },
     { 
       id: 'summary', 
       label: 'Resumo', 
       icon: Scroll, 
-      component: (props: any) => <SessionSummaryTool {...props} activeSession={activeSession} />, 
-      color: 'text-blue-400' 
+      color: 'text-blue-400',
+      component: (props: any) => <SessionSummaryTool {...props} activeSession={activeSession} />
     },
     { 
       id: 'analysis', 
       label: 'Análise', 
       icon: Search, 
-      component: (props: any) => <ContextAnalysisTool {...props} activeSession={activeSession} />, 
-      color: 'text-amber-400' 
+      color: 'text-amber-400',
+      component: (props: any) => <ContextAnalysisTool {...props} activeSession={activeSession} />
     },
     { 
       id: 'narrative', 
       label: 'Escrita', 
       icon: PenTool, 
-      component: (props: any) => <NarrativeGeneratorTool {...props} activeSession={activeSession} />, 
-      color: 'text-purple-400' 
+      color: 'text-purple-400',
+      component: (props: any) => <NarrativeGeneratorTool {...props} activeSession={activeSession} />
     },
     { 
       id: 'sandbox', 
       label: 'Sandbox', 
       icon: Map, 
-      component: (props: any) => <SandboxIdeasTool {...props} activeSession={activeSession} />, 
-      color: 'text-green-400' 
+      color: 'text-green-400',
+      component: (props: any) => <SandboxIdeasTool {...props} activeSession={activeSession} />
     },
     { 
       id: 'consequences', 
       label: 'Efeitos', 
       icon: Zap, 
-      component: (props: any) => <ConsequencesTool {...props} activeSession={activeSession} />, 
-      color: 'text-red-400' 
+      color: 'text-red-400',
+      component: (props: any) => <ConsequencesTool {...props} activeSession={activeSession} />
     },
   ] as const;
 
@@ -260,7 +269,6 @@ function ScreenDungeonMasterContent() {
     toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
   };
 
-  // Force session selection on startup after login
   useEffect(() => {
     if (user && !activeSession && !loadingSessions && (!sessions || sessions.length === 0)) {
       setIsModalOpen(true);

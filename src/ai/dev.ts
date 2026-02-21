@@ -8,3 +8,5 @@ import '@/ai/flows/generate-sandbox-ideas.ts';
 import '@/ai/flows/analyze-context.ts';
 import '@/ai/flows/dynamic-encounter-flow.ts';
 import '@/ai/flows/prepare-session-flow.ts';
+import '@/ai/flows/generate-npc-flow.ts';
+import '@/ai/flows/generate-faction-flow.ts';
