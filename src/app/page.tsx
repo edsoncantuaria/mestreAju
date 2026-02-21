@@ -19,7 +19,8 @@ import {
   Book,
   FolderOpen,
   ChevronRight,
-  Loader2
+  Loader2,
+  LogIn
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -35,19 +36,27 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { FirebaseClientProvider, useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { FirebaseClientProvider, useUser, useFirestore, useCollection, useMemoFirebase, useAuth, initiateAnonymousSignIn } from '@/firebase';
 import { collection, query, orderBy } from 'firebase/firestore';
 
 type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'rules';
 
 function ScreenDungeonMasterContent() {
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
   const db = useFirestore();
   const [activeTools, setActiveTools] = useState<ToolId[]>(['live', 'rules']);
   const [partyInfo, setPartyInfo] = useState({ playerCount: 4, averageLevel: 1 });
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
+
+  // Auto-login to ensure we have a UID for Firestore paths
+  useEffect(() => {
+    if (!user && !isUserLoading && auth) {
+      initiateAnonymousSignIn(auth);
+    }
+  }, [user, isUserLoading, auth]);
 
   // Memoized query to fetch sessions from Firestore
   const sessionsQuery = useMemoFirebase(() => {
@@ -138,15 +147,24 @@ function ScreenDungeonMasterContent() {
     setSharedContext(prev => ({ ...prev, ...data }));
   };
 
-  // Force session selection on startup
+  // Force session selection on startup after login
   useEffect(() => {
-    if (!activeSession && !loadingSessions && (!sessions || sessions.length === 0)) {
+    if (user && !activeSession && !loadingSessions && (!sessions || sessions.length === 0)) {
       setIsModalOpen(true);
       setShowNewSessionForm(true);
-    } else if (!activeSession && !loadingSessions) {
+    } else if (user && !activeSession && !loadingSessions) {
       setIsModalOpen(true);
     }
-  }, [activeSession, loadingSessions, sessions]);
+  }, [user, activeSession, loadingSessions, sessions]);
+
+  if (isUserLoading) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="font-headline text-accent animate-pulse tracking-widest uppercase text-xs">Despertando o Grimório Cloud...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/30">
@@ -236,6 +254,9 @@ function ScreenDungeonMasterContent() {
               </div>
             </PopoverContent>
           </Popover>
+          <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center">
+            <LogIn size={14} className="text-muted-foreground" />
+          </div>
         </div>
       </header>
 
@@ -273,7 +294,7 @@ function ScreenDungeonMasterContent() {
                       {activeSession && tool.id !== 'rules' && (
                         <div className="flex items-center gap-1">
                           <LinkIcon size={10} className="text-green-500" />
-                          <span className="text-[8px] font-bold text-green-500 uppercase">Contexto Ativo</span>
+                          <span className="text-[8px] font-bold text-green-500 uppercase">Sincronizado</span>
                         </div>
                       )}
                     </div>
@@ -314,7 +335,7 @@ function ScreenDungeonMasterContent() {
                 {showNewSessionForm ? 'Nova Preparação Sandbox' : 'Carregar Crônica'}
               </DialogTitle>
               <DialogDescription className="text-muted-foreground italic">
-                {showNewSessionForm ? 'Defina o mapa e o lore inicial para o seu mundo aberto.' : 'Suas sessões são salvas automaticamente no Firebase.'}
+                {showNewSessionForm ? 'Defina o mapa e o lore inicial para o seu mundo aberto.' : 'Suas sessões são salvas e sincronizadas automaticamente no Firebase.'}
               </DialogDescription>
             </DialogHeader>
 
@@ -342,13 +363,13 @@ function ScreenDungeonMasterContent() {
                 </Button>
 
                 <div className="space-y-3 pt-2">
-                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Seus Mundos Salvos</h4>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground px-1">Seus Mundos Sincronizados</h4>
                   
                   <div className="max-h-[350px] overflow-y-auto pr-2 custom-scrollbar space-y-2">
                     {loadingSessions ? (
                       <div className="py-12 flex flex-col items-center justify-center text-muted-foreground opacity-50">
                         <Loader2 className="animate-spin mb-2" />
-                        <span className="text-[10px] font-bold">Lendo o Grimório...</span>
+                        <span className="text-[10px] font-bold">Acessando Firestore...</span>
                       </div>
                     ) : sessions && sessions.length > 0 ? (
                       sessions.map((session: any) => (
@@ -364,7 +385,7 @@ function ScreenDungeonMasterContent() {
                             <div className="flex flex-col">
                               <span className="text-sm font-bold text-foreground group-hover:text-accent transition-colors">{session.title}</span>
                               <span className="text-[10px] text-muted-foreground italic line-clamp-1 opacity-70">
-                                Criado em {new Date(session.dateCreated?.seconds * 1000).toLocaleDateString()}
+                                Sincronizado em {session.dateLastModified ? new Date(session.dateLastModified).toLocaleDateString() : 'N/A'}
                               </span>
                             </div>
                           </div>
@@ -373,7 +394,7 @@ function ScreenDungeonMasterContent() {
                       ))
                     ) : (
                       <div className="py-12 text-center text-muted-foreground italic text-xs border border-dashed border-white/5 rounded-xl">
-                        Nenhum mundo salvo. Clique em criar acima!
+                        Nenhum mundo salvo na nuvem. Clique em criar acima!
                       </div>
                     )}
                   </div>
@@ -395,7 +416,7 @@ function ScreenDungeonMasterContent() {
           </span>
           <span className="opacity-30">|</span>
           <span className="flex items-center gap-1 text-green-500">
-             <div className="w-1 h-1 rounded-full bg-green-500 animate-pulse" /> CLOUD SYNC ON
+             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> CLOUD SYNC: {user ? 'ON (' + user.uid.substring(0,6) + ')' : 'OFF'}
           </span>
         </div>
       </footer>
