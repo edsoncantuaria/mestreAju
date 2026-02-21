@@ -10,13 +10,13 @@ import {
   Sword,
   X,
   Plus,
-  Layout,
-  Users,
-  Shield,
   Activity,
   Link as LinkIcon,
   BookOpen,
-  Sparkles
+  Sparkles,
+  Users,
+  Shield,
+  Book
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -25,6 +25,7 @@ import { SandboxIdeasTool } from '@/components/tools/sandbox-ideas-tool';
 import { ConsequencesTool } from '@/components/tools/consequences-tool';
 import { LiveSessionTool } from '@/components/tools/live-session-tool';
 import { PrepareSessionTool } from '@/components/tools/prepare-session-tool';
+import { RulesLookupTool } from '@/components/tools/rules-lookup-tool';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
@@ -33,13 +34,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { FirebaseClientProvider } from '@/firebase';
 import { Badge } from '@/components/ui/badge';
 
-type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'prepare';
+type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'prepare' | 'rules';
 
 function ScreenDungeonMasterContent() {
   const [activeTools, setActiveTools] = useState<ToolId[]>(['prepare']);
   const [partyInfo, setPartyInfo] = useState({ playerCount: 4, averageLevel: 1 });
-  
-  // O contexto central que "carrega" a inteligência do mestre
   const [activeSession, setActiveSession] = useState<any | null>(null);
 
   const [sharedContext, setSharedContext] = useState({
@@ -63,6 +62,13 @@ function ScreenDungeonMasterContent() {
       icon: Activity, 
       component: (props: any) => <LiveSessionTool {...props} activeSession={activeSession} />, 
       color: 'text-rose-500' 
+    },
+    { 
+      id: 'rules', 
+      label: 'Regras', 
+      icon: Book, 
+      component: (props: any) => <RulesLookupTool {...props} />, 
+      color: 'text-cyan-400' 
     },
     { 
       id: 'summary', 
@@ -109,7 +115,6 @@ function ScreenDungeonMasterContent() {
 
   const handleLoadSession = (sessionData: any) => {
     setActiveSession(sessionData);
-    // Ao carregar uma sessão, geralmente abrimos a ferramenta "Ativo" para começar o jogo
     if (!activeTools.includes('live')) {
       setActiveTools(prev => [...prev, 'live']);
     }
@@ -137,7 +142,7 @@ function ScreenDungeonMasterContent() {
           </div>
         </div>
 
-        <nav className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-[50%] no-scrollbar">
+        <nav className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5 overflow-x-auto max-w-[60%] no-scrollbar">
           <TooltipProvider>
             {tools.map((tool) => {
               const isActive = activeTools.includes(tool.id);
@@ -154,7 +159,7 @@ function ScreenDungeonMasterContent() {
                       )}
                     >
                       <tool.icon size={18} className={isActive ? "text-accent" : tool.color} />
-                      <span className="hidden lg:inline">{tool.label}</span>
+                      <span className="hidden xl:inline">{tool.label}</span>
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>
@@ -176,7 +181,7 @@ function ScreenDungeonMasterContent() {
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="rounded-full border-white/10 gap-2 text-[10px] font-bold h-9">
                 <Users size={14} className="text-accent" />
-                <span className="hidden md:inline">Grupo: {partyInfo.playerCount}p / Nvl {partyInfo.averageLevel}</span>
+                <span className="hidden md:inline">{partyInfo.playerCount}p / Nvl {partyInfo.averageLevel}</span>
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-64 bg-card border-white/10 shadow-2xl">
@@ -234,7 +239,7 @@ function ScreenDungeonMasterContent() {
                     <div className="flex items-center gap-2">
                       <tool.icon size={16} className={tool.id === 'live' ? 'text-rose-500 animate-pulse' : tool.color} />
                       <span className="font-headline font-bold text-xs tracking-wide uppercase text-accent/80">{tool.label}</span>
-                      {activeSession && tool.id !== 'prepare' && (
+                      {activeSession && tool.id !== 'prepare' && tool.id !== 'rules' && (
                         <div className="flex items-center gap-1">
                           <LinkIcon size={10} className="text-green-500" />
                           <span className="text-[8px] font-bold text-green-500 uppercase">Contexto Ativo</span>

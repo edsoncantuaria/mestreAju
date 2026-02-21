@@ -1,9 +1,9 @@
 'use server';
 /**
- * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados.
+ * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais.
  */
 
-import {ai} from '@/ai/genkit';
+import {ai, fetchDndRuleTool} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const PartyInfoSchema = z.object({
@@ -29,7 +29,7 @@ const DynamicEncounterOutputSchema = z.object({
   narrativa: z.string().describe('Texto descrevendo o desenrolar da cena atual.'),
   opcoes: z.array(OptionSchema).min(2).max(4).describe('Próximos passos possíveis.'),
   detalheOculto: z.string().optional().describe('Um segredo, item ou gancho encontrado.'),
-  sugestaoMecanica: z.string().optional().describe('Sugestão de CD (Dificuldade) ou monstros específicos 5e.'),
+  sugestaoMecanica: z.string().optional().describe('Sugestão de CD (Dificuldade) ou monstros específicos baseados nas regras oficiais.'),
 });
 export type DynamicEncounterOutput = z.infer<typeof DynamicEncounterOutputSchema>;
 
@@ -39,6 +39,7 @@ export async function generateEncounterStep(input: DynamicEncounterInput): Promi
 
 const prompt = ai.definePrompt({
   name: 'dynamicEncounterPrompt',
+  tools: [fetchDndRuleTool],
   input: {schema: DynamicEncounterInputSchema},
   output: {schema: DynamicEncounterOutputSchema},
   prompt: `Você é o Copiloto de Sessão Ativa para D&D 5e.
@@ -51,7 +52,9 @@ SITUAÇÃO ATUAL: {{{currentSituation}}}
 Gere o próximo passo da narrativa de forma fluida. 
 As opções devem ser variadas (Combate, Social, Exploração).
 Considere o nível do grupo para sugerir a dificuldade e monstros.
-Se for um encontro de combate, sugira monstros que façam sentido para o nível {{partyInfo.averageLevel}}.
+
+**IMPORTANTE**: Você tem acesso às regras oficiais do D&D 5e via ferramenta fetchDndRule. 
+Se a situação envolver mecânicas complexas (como escalada, luz, cobertura ou condições), use a ferramenta para garantir que a dificuldade e as sugestões mecânicas estejam corretas.
 
 Sua resposta deve ser em Português Brasileiro.`,
 });
