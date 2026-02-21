@@ -182,21 +182,18 @@ function ScreenDungeonMasterContent() {
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
 
-  // Fetch user profile for persistent settings
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, 'users', user.uid);
   }, [db, user]);
   const { data: userProfile, isLoading: loadingProfile } = useDoc(userDocRef);
 
-  // Real-time listener for the active session
   const activeSessionDocRef = useMemoFirebase(() => {
     if (!db || !user || !activeSessionId) return null;
     return doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
   }, [db, user, activeSessionId]);
   const { data: activeSession, isLoading: loadingActiveSession } = useDoc(activeSessionDocRef);
 
-  // Sync active tools and party from Firestore for persistence
   useEffect(() => {
     if (activeSession) {
       if (activeSession.uiState?.activeTools) {
@@ -206,7 +203,7 @@ function ScreenDungeonMasterContent() {
         setPartyMembers(activeSession.partyMembers);
       }
     }
-  }, [activeSession?.id, activeSession?.partyMembers]);
+  }, [activeSession?.id]);
 
   const updateActiveTools = async (tools: ToolId[]) => {
     setActiveTools(tools);
@@ -216,7 +213,6 @@ function ScreenDungeonMasterContent() {
     }
   };
 
-  // Memoized query to fetch all sessions from Firestore for the selection modal
   const sessionsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -227,7 +223,6 @@ function ScreenDungeonMasterContent() {
 
   const { data: sessions, isLoading: loadingSessions } = useCollection(sessionsQuery);
 
-  // Restore session from Firestore Profile or localStorage
   useEffect(() => {
     if (!loadingSessions && !loadingProfile && sessions && sessions.length > 0 && !activeSessionId) {
       const savedSessionId = userProfile?.lastActiveSessionId || localStorage.getItem('mestreaju_active_session_id');
@@ -249,14 +244,14 @@ function ScreenDungeonMasterContent() {
       label: 'Sessão Ativa', 
       icon: Activity, 
       color: 'text-rose-500',
-      component: (props: any) => <LiveSessionTool {...props} activeSession={activeSession} />
+      component: (props: any) => <LiveSessionTool {...props} />
     },
     { 
       id: 'entities', 
       label: 'Grimório', 
       icon: Users, 
       color: 'text-sky-400',
-      component: (props: any) => <NpcFactionManagerTool {...props} activeSession={activeSession} />
+      component: (props: any) => <NpcFactionManagerTool {...props} />
     },
     { 
       id: 'rules', 
@@ -270,35 +265,35 @@ function ScreenDungeonMasterContent() {
       label: 'Resumo', 
       icon: Scroll, 
       color: 'text-blue-400',
-      component: (props: any) => <SessionSummaryTool {...props} activeSession={activeSession} />
+      component: (props: any) => <SessionSummaryTool {...props} />
     },
     { 
       id: 'analysis', 
       label: 'Análise', 
       icon: Search, 
       color: 'text-amber-400',
-      component: (props: any) => <ContextAnalysisTool {...props} activeSession={activeSession} />
+      component: (props: any) => <ContextAnalysisTool {...props} />
     },
     { 
       id: 'narrative', 
       label: 'Escrita', 
       icon: PenTool, 
       color: 'text-purple-400',
-      component: (props: any) => <NarrativeGeneratorTool {...props} activeSession={activeSession} />
+      component: (props: any) => <NarrativeGeneratorTool {...props} />
     },
     { 
       id: 'sandbox', 
       label: 'Sandbox', 
       icon: Map, 
       color: 'text-green-400',
-      component: (props: any) => <SandboxIdeasTool {...props} activeSession={activeSession} />
+      component: (props: any) => <SandboxIdeasTool {...props} />
     },
     { 
       id: 'consequences', 
       label: 'Efeitos', 
       icon: Zap, 
       color: 'text-red-400',
-      component: (props: any) => <ConsequencesTool {...props} activeSession={activeSession} />
+      component: (props: any) => <ConsequencesTool {...props} />
     },
   ] as const;
 
@@ -313,7 +308,6 @@ function ScreenDungeonMasterContent() {
     setActiveSessionId(session.id);
     localStorage.setItem('mestreaju_active_session_id', session.id);
     
-    // Persist active session to Firestore user profile
     if (db && user) {
       setDoc(doc(db, 'users', user.uid), { 
         lastActiveSessionId: session.id,
@@ -329,12 +323,10 @@ function ScreenDungeonMasterContent() {
   const handleContextAction = async (targetToolId: ToolId, data: any) => {
     if (!db || !user || !activeSessionId) return;
 
-    // 1. Ensure the tool is open without closing the active one
     if (!activeTools.includes(targetToolId)) {
       updateActiveTools([...activeTools, targetToolId]);
     }
 
-    // 2. Persist the "Active Context" to Firestore so the tool picks it up
     const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
     await updateDoc(sessionRef, {
       activeContext: {
@@ -413,7 +405,7 @@ function ScreenDungeonMasterContent() {
     return <AuthScreen />;
   }
 
-  const avgLevel = Math.round(partyMembers.reduce((acc, m) => acc + m.level, 0) / partyMembers.length);
+  const avgLevel = partyMembers.length > 0 ? Math.round(partyMembers.reduce((acc, m) => acc + m.level, 0) / partyMembers.length) : 1;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/30">

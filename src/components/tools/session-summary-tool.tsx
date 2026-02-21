@@ -1,17 +1,44 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Scroll, Send, Loader2, AlertTriangle, Lightbulb } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { summarizeSession, type SummarizeSessionOutput } from '@/ai/flows/summarize-session';
 import { Badge } from '@/components/ui/badge';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
-export function SessionSummaryTool() {
+interface SessionSummaryToolProps {
+  activeSession: any | null;
+}
+
+export function SessionSummaryTool({ activeSession }: SessionSummaryToolProps) {
+  const { user } = useUser();
+  const db = useFirestore();
+
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SummarizeSessionOutput | null>(null);
+
+  // Restaurar do Firestore
+  useEffect(() => {
+    if (activeSession?.toolStates?.summary) {
+      setInput(activeSession.toolStates.summary.input || '');
+    }
+    if (activeSession?.toolStates?.summary_result) {
+      setResult(activeSession.toolStates.summary_result);
+    }
+  }, [activeSession?.id]);
+
+  const persistToolState = async (updates: any) => {
+    if (!db || !user || !activeSession) return;
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+    updateDoc(sessionRef, { 
+      [`toolStates.summary`]: { input, ...updates } 
+    });
+  };
 
   const handleSummarize = async () => {
     if (!input.trim()) return;
@@ -19,10 +46,23 @@ export function SessionSummaryTool() {
     try {
       const data = await summarizeSession({ sessionSummary: input });
       setResult(data);
+      
+      if (db && user && activeSession.id) {
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, { 'toolStates.summary_result': data });
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resetResult = () => {
+    setResult(null);
+    if (db && user && activeSession.id) {
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+      updateDoc(sessionRef, { 'toolStates.summary_result': null });
     }
   };
 
@@ -34,7 +74,10 @@ export function SessionSummaryTool() {
             placeholder="Relate o que aconteceu na última sessão..."
             className="min-h-[200px] bg-background/30 border-white/10 focus:border-primary/50 resize-none text-sm leading-relaxed"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => {
+              setInput(e.target.value);
+              persistToolState({ input: e.target.value });
+            }}
           />
           <Button 
             onClick={handleSummarize} 
@@ -104,7 +147,7 @@ export function SessionSummaryTool() {
             </div>
           </div>
 
-          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={resetResult}>
             Nova Análise
           </Button>
         </div>

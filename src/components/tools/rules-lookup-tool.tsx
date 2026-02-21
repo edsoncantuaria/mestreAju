@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Book, Search, Loader2, Info, Skull, Shield, Zap, Swords, Terminal, Check, Copy, Download } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Book, Search, Loader2, Info, Skull, Shield, Zap, Swords, Terminal, Check, Copy, Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -9,40 +9,87 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
-export function RulesLookupTool() {
-  const [query, setQuery] = useState('');
+interface RulesLookupToolProps {
+  activeSession: any | null;
+}
+
+export function RulesLookupTool({ activeSession }: RulesLookupToolProps) {
+  const { user } = useUser();
+  const db = useFirestore();
+  const { toast } = useToast();
+
+  const [queryText, setQueryText] = useState('');
   const [loading, setLoading] = useState(false);
   const [ruleResult, setRuleResult] = useState<any | null>(null);
   const [monsterResult, setMonsterResult] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState('rules');
 
+  // Restaurar do Firestore
+  useEffect(() => {
+    if (activeSession?.toolStates?.rules_lookup) {
+      setQueryText(activeSession.toolStates.rules_lookup.queryText || '');
+      setActiveTab(activeSession.toolStates.rules_lookup.activeTab || 'rules');
+    }
+    if (activeSession?.toolStates?.rules_lookup_rule) {
+      setRuleResult(activeSession.toolStates.rules_lookup_rule);
+    }
+    if (activeSession?.toolStates?.rules_lookup_monster) {
+      setMonsterResult(activeSession.toolStates.rules_lookup_monster);
+    }
+  }, [activeSession?.id]);
+
+  const persistToolState = async (updates: any) => {
+    if (!db || !user || !activeSession) return;
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+    updateDoc(sessionRef, { 
+      [`toolStates.rules_lookup`]: { queryText, activeTab, ...updates } 
+    });
+  };
+
   const handleSearch = async () => {
-    if (!query.trim()) return;
+    if (!queryText.trim()) return;
     setLoading(true);
-    const index = query.toLowerCase().replace(/\s+/g, '-');
+    const index = queryText.toLowerCase().replace(/\s+/g, '-');
 
     try {
       if (activeTab === 'rules') {
         const response = await fetch(`https://www.dnd5eapi.co/api/rule-sections/${index}`);
+        let data;
         if (!response.ok) {
           const fallback = await fetch(`https://www.dnd5eapi.co/api/rules/${index}`);
           if (!fallback.ok) {
-            setRuleResult({ error: "Regra não encontrada." });
+            data = { error: "Regra não encontrada." };
           } else {
-            setRuleResult(await fallback.json());
+            data = await fallback.json();
           }
         } else {
-          setRuleResult(await response.json());
+          data = await response.json();
+        }
+        setRuleResult(data);
+        if (db && user && activeSession) {
+          updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`), {
+            'toolStates.rules_lookup_rule': data
+          });
         }
       } else {
         const response = await fetch(`https://api.open5e.com/monsters/${index}/`);
+        let data;
         if (!response.ok) {
-          setMonsterResult({ error: "Monstro não encontrado." });
+          data = { error: "Monstro não encontrado." };
         } else {
-          setMonsterResult(await response.json());
+          data = await response.json();
+        }
+        setMonsterResult(data);
+        if (db && user && activeSession) {
+          updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`), {
+            'toolStates.rules_lookup_monster': data
+          });
         }
       }
+      persistToolState({});
     } catch (error) {
       console.error(error);
     } finally {
@@ -50,9 +97,27 @@ export function RulesLookupTool() {
     }
   };
 
+  const clearResults = () => {
+    setRuleResult(null);
+    setMonsterResult(null);
+    if (db && user && activeSession) {
+      updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`), {
+        'toolStates.rules_lookup_rule': null,
+        'toolStates.rules_lookup_monster': null
+      });
+    }
+  };
+
   return (
     <div className="space-y-4 h-full flex flex-col">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs 
+        value={activeTab} 
+        onValueChange={(val) => {
+          setActiveTab(val);
+          persistToolState({ activeTab: val });
+        }} 
+        className="w-full"
+      >
         <TabsList className="grid grid-cols-2 bg-black/40 border border-white/5">
           <TabsTrigger value="rules" className="text-[10px] uppercase font-bold tracking-widest gap-2">
             <Book size={12} /> Regras
@@ -66,8 +131,11 @@ export function RulesLookupTool() {
       <div className="flex gap-2">
         <Input 
           placeholder={activeTab === 'rules' ? "Ex: combat, cover..." : "Ex: goblin, lich..."} 
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          value={queryText}
+          onChange={(e) => {
+            setQueryText(e.target.value);
+            persistToolState({ queryText: e.target.value });
+          }}
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           className="bg-background/30 border-white/5 h-9 text-xs"
         />
@@ -78,9 +146,9 @@ export function RulesLookupTool() {
 
       <ScrollArea className="flex-1 pr-3 -mr-3">
         {activeTab === 'rules' ? (
-          <RuleView result={ruleResult} />
+          <RuleView result={ruleResult} onClear={clearResults} />
         ) : (
-          <MonsterStatblock result={monsterResult} />
+          <MonsterStatblock result={monsterResult} onClear={clearResults} />
         )}
       </ScrollArea>
       
@@ -92,12 +160,15 @@ export function RulesLookupTool() {
   );
 }
 
-function RuleView({ result }: { result: any }) {
+function RuleView({ result, onClear }: { result: any, onClear: () => void }) {
   if (!result) return <EmptyState icon={Book} label="Enciclopédia de Regras" />;
   if (result.error) return <ErrorState message={result.error} />;
 
   return (
-    <Card className="border-white/5 bg-black/40 animate-in fade-in zoom-in-95">
+    <Card className="border-white/5 bg-black/40 animate-in fade-in zoom-in-95 relative group">
+      <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100" onClick={onClear}>
+        <X size={12} />
+      </Button>
       <CardHeader className="py-2 px-3 border-b border-white/5">
         <CardTitle className="text-xs font-headline uppercase tracking-widest text-accent flex items-center gap-2">
           <Book size={12} /> {result.name}
@@ -112,7 +183,7 @@ function RuleView({ result }: { result: any }) {
   );
 }
 
-function MonsterStatblock({ result }: { result: any }) {
+function MonsterStatblock({ result, onClear }: { result: any, onClear: () => void }) {
   const { toast } = useToast();
   const [copiedMacro, setCopiedMacro] = useState(false);
   const [copiedImport, setCopiedImport] = useState(false);
@@ -134,16 +205,12 @@ function MonsterStatblock({ result }: { result: any }) {
       const mod = Math.floor((val - 10) / 2);
       return `${val} (${mod >= 0 ? '+' : ''}${mod})`;
     };
-
     let macro = `&{template:npc} {{name=${result.name}}} {{npc_type=${result.size} ${result.type}}} {{npc_alignment=${result.alignment}}} {{npc_ac=${result.armor_class}}} {{npc_hp=${result.hit_points}}} {{npc_speed=${result.speed.walk || result.speed}}} {{npc_challenge=${result.challenge_rating}}}`;
-    
     macro += ` {{npc_str=${modStr(result.strength)}}} {{npc_dex=${modStr(result.dexterity)}}} {{npc_con=${modStr(result.constitution)}}} {{npc_int=${modStr(result.intelligence)}}} {{npc_wis=${modStr(result.wisdom)}}} {{npc_cha=${modStr(result.charisma)}}}`;
-
     if (result.actions && result.actions.length > 0) {
       const actionsSummary = result.actions.slice(0, 3).map((a: any) => `**${a.name}**: ${a.desc.substring(0, 80)}...`).join('\\n');
       macro += ` {{actions=${actionsSummary}}}`;
     }
-
     return macro;
   };
 
@@ -151,22 +218,11 @@ function MonsterStatblock({ result }: { result: any }) {
     return `!setattr --sel --npc_name "${result.name}" --hp ${result.hit_points} --hp|max ${result.hit_points} --npc_ac ${result.armor_class} --strength ${result.strength} --dexterity ${result.dexterity} --constitution ${result.constitution} --intelligence ${result.intelligence} --wisdom ${result.wisdom} --charisma ${result.charisma} --npc_type "${result.size} ${result.type}" --npc_challenge ${result.challenge_rating}`;
   };
 
-  const copyMacro = () => {
-    navigator.clipboard.writeText(generateRoll20Macro());
-    setCopiedMacro(true);
-    toast({ title: "Visualização Copiada!", description: "Use para ver o statblock no chat." });
-    setTimeout(() => setCopiedMacro(false), 2000);
-  };
-
-  const copyImport = () => {
-    navigator.clipboard.writeText(generateImportCommand());
-    setCopiedImport(true);
-    toast({ title: "Comando de Importação!", description: "Selecione o token no Roll20 e cole para preencher a ficha." });
-    setTimeout(() => setCopiedImport(false), 2000);
-  };
-
   return (
-    <Card className="border-accent/20 bg-card/60 animate-in zoom-in-95 overflow-hidden">
+    <Card className="border-accent/20 bg-card/60 animate-in zoom-in-95 overflow-hidden relative group">
+      <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 z-10" onClick={onClear}>
+        <X size={12} />
+      </Button>
       <div className="h-1 bg-accent w-full" />
       <CardHeader className="p-4 pb-2">
         <div className="flex justify-between items-start">
@@ -178,19 +234,29 @@ function MonsterStatblock({ result }: { result: any }) {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8 text-primary" onClick={copyMacro}>
+                  <Button variant="outline" size="icon" className="h-8 w-8 text-primary" onClick={() => {
+                    navigator.clipboard.writeText(generateRoll20Macro());
+                    setCopiedMacro(true);
+                    setTimeout(() => setCopiedMacro(false), 2000);
+                    toast({ title: "Macro Copiada!" });
+                  }}>
                     {copiedMacro ? <Check size={14} /> : <Terminal size={14} />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent><p className="text-[10px]">Macro de Chat (Visual)</p></TooltipContent>
+                <TooltipContent><p className="text-[10px]">Macro de Chat</p></TooltipContent>
               </Tooltip>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" size="icon" className="h-8 w-8 text-accent" onClick={copyImport}>
+                  <Button variant="outline" size="icon" className="h-8 w-8 text-accent" onClick={() => {
+                    navigator.clipboard.writeText(generateImportCommand());
+                    setCopiedImport(true);
+                    setTimeout(() => setCopiedImport(false), 2000);
+                    toast({ title: "Importação Copiada!" });
+                  }}>
                     {copiedImport ? <Check size={14} /> : <Download size={14} />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent><p className="text-[10px]">Importar para Ficha (ChatSetAttr)</p></TooltipContent>
+                <TooltipContent><p className="text-[10px]">Importar Ficha</p></TooltipContent>
               </Tooltip>
             </TooltipProvider>
             <div className="text-right ml-2">
@@ -216,7 +282,6 @@ function MonsterStatblock({ result }: { result: any }) {
             </div>
           </div>
         </div>
-
         <div className="grid grid-cols-6 gap-1 text-center">
           {abilities.map((a) => (
             <div key={a.label} className="flex flex-col p-1 rounded bg-black/20">
@@ -226,7 +291,6 @@ function MonsterStatblock({ result }: { result: any }) {
             </div>
           ))}
         </div>
-
         <div className="space-y-3">
           <section>
             <h4 className="text-[9px] font-bold text-accent uppercase tracking-tighter border-b border-accent/10 mb-1 flex items-center gap-2">
