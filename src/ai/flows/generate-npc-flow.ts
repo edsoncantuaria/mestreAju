@@ -1,7 +1,6 @@
 'use server';
 /**
- * @fileOverview Fluxo Genkit para gerar NPCs profundos para D&D 5e Sandbox.
- * Inclui geração de macro para Roll20 baseada no template oficial "D&D 5E by Roll20".
+ * @fileOverview Fluxo Genkit para gerar NPCs profundos para D&D 5e Sandbox com comandos de importação Roll20.
  */
 
 import {ai} from '@/ai/genkit';
@@ -23,7 +22,20 @@ const GenerateNpcOutputSchema = z.object({
   alignment: z.string(),
   motivations: z.string().describe('O que move este NPC agora?'),
   secrets: z.string().describe('Algo que ele esconde dos jogadores.'),
-  roll20Macro: z.string().describe('Uma macro do Roll20 usando &{template:npc} que mostra os principais atributos, ataques e defesas compatível com a ficha oficial 5E by Roll20.'),
+  stats: z.object({
+    hp: z.number(),
+    ac: z.number(),
+    speed: z.string(),
+    str: z.number(),
+    dex: z.number(),
+    con: z.number(),
+    int: z.number(),
+    wis: z.number(),
+    cha: z.number(),
+    cr: z.string(),
+  }),
+  roll20Macro: z.string().describe('Macro &{template:npc} para exibição visual no chat.'),
+  roll20Import: z.string().describe('Comando !setattr para preencher automaticamente os campos da ficha no Roll20.'),
 });
 export type GenerateNpcOutput = z.infer<typeof GenerateNpcOutputSchema>;
 
@@ -43,13 +55,12 @@ const generateNpcFlow = ai.defineFlow(
       input: {schema: GenerateNpcInputSchema},
       output: {schema: GenerateNpcOutputSchema},
       prompt: `Você é o Criador de Personagens do MestreAju. 
-Gere um NPC de D&D 5e altamente detalhado e pronto para um jogo de Sandbox Político.
-O NPC deve ter profundidade, motivações conflitantes e um segredo que pode ser um gancho de trama.
+Gere um NPC de D&D 5e completo para Sandbox Político.
 
-ALÉM DISSO, gere uma macro para Roll20 no campo "roll20Macro".
-A macro deve usar o template oficial da ficha 5E do Roll20: &{template:npc}.
-Estrutura esperada:
-&{template:npc} {{name=Nome}} {{npc_type=Raça Classe}} {{npc_alignment=Alinhamento}} {{npc_ac=Valor}} {{npc_hp=Valor}} {{npc_speed=Valor}} {{npc_str=For (Mod)}} {{npc_dex=Des (Mod)}} {{npc_con=Con (Mod)}} {{npc_int=Int (Mod)}} {{npc_wis=Sab (Mod)}} {{npc_cha=Car (Mod)}} {{description=Descrição Curta}} {{actions=Ação Principal}}.
+REGRAS PARA MACROS ROLL20:
+1. roll20Macro: Use &{template:npc}. Deve ser visualmente rico.
+2. roll20Import: Gere um comando !setattr para o script ChatSetAttr do Roll20.
+   Formato: !setattr --sel --npc_name "{{name}}" --hp {{hp}} --hp|max {{hp}} --npc_ac {{ac}} --strength {{str}} --dexterity {{dex}} --constitution {{con}} --intelligence {{int}} --wisdom {{wis}} --charisma {{cha}} --npc_type "{{race}} {{dndClass}}" --npc_challenge {{cr}}
 
 CONTEXTO: {{{context}}}
 {{#if race}}RAÇA DESEJADA: {{{race}}}{{/if}}

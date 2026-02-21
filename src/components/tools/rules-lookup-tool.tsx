@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Book, Search, Loader2, Info, Skull, Shield, Zap, Swords, Terminal, Check, Copy } from 'lucide-react';
+import { Book, Search, Loader2, Info, Skull, Shield, Zap, Swords, Terminal, Check, Copy, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -114,7 +114,8 @@ function RuleView({ result }: { result: any }) {
 
 function MonsterStatblock({ result }: { result: any }) {
   const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
+  const [copiedMacro, setCopiedMacro] = useState(false);
+  const [copiedImport, setCopiedImport] = useState(false);
 
   if (!result) return <EmptyState icon={Skull} label="Bestiário SRD" />;
   if (result.error) return <ErrorState message={result.error} />;
@@ -134,7 +135,6 @@ function MonsterStatblock({ result }: { result: any }) {
       return `${val} (${mod >= 0 ? '+' : ''}${mod})`;
     };
 
-    // Usando &{template:npc} da ficha oficial 5E by Roll20
     let macro = `&{template:npc} {{name=${result.name}}} {{npc_type=${result.size} ${result.type}}} {{npc_alignment=${result.alignment}}} {{npc_ac=${result.armor_class}}} {{npc_hp=${result.hit_points}}} {{npc_speed=${result.speed.walk || result.speed}}} {{npc_challenge=${result.challenge_rating}}}`;
     
     macro += ` {{npc_str=${modStr(result.strength)}}} {{npc_dex=${modStr(result.dexterity)}}} {{npc_con=${modStr(result.constitution)}}} {{npc_int=${modStr(result.intelligence)}}} {{npc_wis=${modStr(result.wisdom)}}} {{npc_cha=${modStr(result.charisma)}}}`;
@@ -147,12 +147,22 @@ function MonsterStatblock({ result }: { result: any }) {
     return macro;
   };
 
+  const generateImportCommand = () => {
+    return `!setattr --sel --npc_name "${result.name}" --hp ${result.hit_points} --hp|max ${result.hit_points} --npc_ac ${result.armor_class} --strength ${result.strength} --dexterity ${result.dexterity} --constitution ${result.constitution} --intelligence ${result.intelligence} --wisdom ${result.wisdom} --charisma ${result.charisma} --npc_type "${result.size} ${result.type}" --npc_challenge ${result.challenge_rating}`;
+  };
+
   const copyMacro = () => {
-    const macro = generateRoll20Macro();
-    navigator.clipboard.writeText(macro);
-    setCopied(true);
-    toast({ title: "Macro de Monstro Gerada!", description: "Ficha rápida copiada no padrão 5E by Roll20." });
-    setTimeout(() => setCopied(false), 2000);
+    navigator.clipboard.writeText(generateRoll20Macro());
+    setCopiedMacro(true);
+    toast({ title: "Visualização Copiada!", description: "Use para ver o statblock no chat." });
+    setTimeout(() => setCopiedMacro(false), 2000);
+  };
+
+  const copyImport = () => {
+    navigator.clipboard.writeText(generateImportCommand());
+    setCopiedImport(true);
+    toast({ title: "Comando de Importação!", description: "Selecione o token no Roll20 e cole para preencher a ficha." });
+    setTimeout(() => setCopiedImport(false), 2000);
   };
 
   return (
@@ -164,23 +174,26 @@ function MonsterStatblock({ result }: { result: any }) {
             <CardTitle className="text-lg font-headline text-accent italic">{result.name}</CardTitle>
             <p className="text-[9px] uppercase tracking-widest text-muted-foreground">{result.size} {result.type}, {result.alignment}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-1">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="icon" 
-                    className="h-8 w-8 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20"
-                    onClick={copyMacro}
-                  >
-                    {copied ? <Check size={14} /> : <Terminal size={14} />}
+                  <Button variant="outline" size="icon" className="h-8 w-8 text-primary" onClick={copyMacro}>
+                    {copiedMacro ? <Check size={14} /> : <Terminal size={14} />}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent><p className="text-[10px]">Gerar Ficha Roll20</p></TooltipContent>
+                <TooltipContent><p className="text-[10px]">Macro de Chat (Visual)</p></TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="icon" className="h-8 w-8 text-accent" onClick={copyImport}>
+                    {copiedImport ? <Check size={14} /> : <Download size={14} />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent><p className="text-[10px]">Importar para Ficha (ChatSetAttr)</p></TooltipContent>
               </Tooltip>
             </TooltipProvider>
-            <div className="text-right">
+            <div className="text-right ml-2">
               <span className="text-[10px] font-bold text-accent bg-accent/10 px-2 py-1 rounded">CR {result.challenge_rating}</span>
             </div>
           </div>
@@ -228,20 +241,6 @@ function MonsterStatblock({ result }: { result: any }) {
               ))}
             </div>
           </section>
-
-          {result.special_abilities && (
-            <section>
-              <h4 className="text-[9px] font-bold text-primary uppercase tracking-tighter border-b border-primary/10 mb-1">Habilidades Especiais</h4>
-              <div className="space-y-2">
-                {result.special_abilities.map((ability: any, i: number) => (
-                  <div key={i} className="text-[10px] leading-relaxed">
-                    <span className="font-bold italic text-foreground">{ability.name}.</span>{' '}
-                    <span className="text-muted-foreground">{ability.desc}</span>
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
         </div>
       </CardContent>
     </Card>

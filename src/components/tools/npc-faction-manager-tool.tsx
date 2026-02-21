@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState } from 'react';
-import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Link as LinkIcon, Terminal, Check, X } from 'lucide-react';
+import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Link as LinkIcon, Terminal, Check, X, Download, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -27,6 +26,7 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
   const [editingToken, setEditingToken] = useState<string | null>(null);
   const [tokenUrl, setTokenUrl] = useState('');
   const [copiedMacro, setCopiedMacro] = useState<string | null>(null);
+  const [copiedImport, setCopiedImport] = useState<string | null>(null);
 
   const npcsQuery = useMemoFirebase(() => {
     if (!db || !user || !activeSession) return null;
@@ -72,8 +72,15 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
   const copyMacro = (macro: string) => {
     navigator.clipboard.writeText(macro);
     setCopiedMacro(macro);
-    toast({ title: "Ficha Copiada!", description: "Cole no chat do Roll20 para ver a ficha rápida." });
+    toast({ title: "Visualização Copiada!", description: "Cole no chat para ver os dados." });
     setTimeout(() => setCopiedMacro(null), 2000);
+  };
+
+  const copyImport = (importCmd: string) => {
+    navigator.clipboard.writeText(importCmd);
+    setCopiedImport(importCmd);
+    toast({ title: "Importação Copiada!", description: "Selecione o token e cole no chat do Roll20." });
+    setTimeout(() => setCopiedImport(null), 2000);
   };
 
   const updateToken = async (id: string) => {
@@ -119,6 +126,10 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
 
   return (
     <div className="h-full flex flex-col space-y-4">
+      <div className="p-2 bg-primary/10 border border-primary/20 rounded-lg flex items-center gap-2 text-[9px] text-accent font-bold uppercase tracking-wider">
+        <Info size={12} /> Dica: Use o botão de Download para preencher a ficha do Roll20 automaticamente (Requer script ChatSetAttr).
+      </div>
+      
       <Tabs defaultValue="npcs" className="flex-1 flex flex-col">
         <TabsList className="bg-black/40 border border-white/5 w-full grid grid-cols-2">
           <TabsTrigger value="npcs" className="gap-2 text-[10px] uppercase font-bold tracking-widest">
@@ -172,12 +183,22 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
                                   {copiedMacro === npc.roll20Macro ? <Check size={12} /> : <Terminal size={12} />}
                                 </Button>
                               </TooltipTrigger>
-                              <TooltipContent><p className="text-[10px]">Copiar Ficha Rápida Roll20</p></TooltipContent>
+                              <TooltipContent><p className="text-[10px]">Macro de Chat (Visual)</p></TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 text-accent" 
+                                  onClick={() => copyImport(npc.roll20Import)}
+                                >
+                                  {copiedImport === npc.roll20Import ? <Check size={12} /> : <Download size={12} />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p className="text-[10px]">Preencher Ficha (Importar)</p></TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
-                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-accent" onClick={() => { setEditingToken(npc.id); setTokenUrl(npc.tokenImageUrl || ''); }}>
-                            <LinkIcon size={12} />
-                          </Button>
                           <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => handleDelete('npcs', npc.id)}>
                             <Trash2 size={12} />
                           </Button>
@@ -203,11 +224,6 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
                   </div>
                 </Card>
               ))}
-              {!npcs?.length && !loading && (
-                <div className="py-20 text-center text-muted-foreground/30 italic text-xs">
-                  Nenhum personagem registrado nesta crônica.
-                </div>
-              )}
             </div>
           </ScrollArea>
         </TabsContent>
@@ -237,24 +253,9 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
                   </CardHeader>
                   <CardContent className="p-3 space-y-2">
                     <p className="text-[10px] text-muted-foreground line-clamp-2">{faction.description}</p>
-                    <div className="space-y-1">
-                      <span className="text-[8px] font-bold uppercase text-cyan-500/70 tracking-widest">Agendas Atuais:</span>
-                      <div className="flex flex-wrap gap-1">
-                        {faction.agendas?.map((agenda: string, i: number) => (
-                          <div key={i} className="px-1.5 py-0.5 rounded bg-white/5 border border-white/5 text-[8px] text-muted-foreground">
-                            {agenda}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </CardContent>
                 </Card>
               ))}
-              {!factions?.length && !loading && (
-                <div className="py-20 text-center text-muted-foreground/30 italic text-xs">
-                  Nenhuma organização registrada nesta crônica.
-                </div>
-              )}
             </div>
           </ScrollArea>
         </TabsContent>
