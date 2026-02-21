@@ -1,8 +1,7 @@
-
 'use server';
 /**
  * @fileOverview Fluxo Genkit para gerar NPCs profundos para D&D 5e Sandbox.
- * Inclui geração de macro para Roll20 baseada em Roll Templates.
+ * Inclui geração de macro para Roll20 baseada no template oficial "D&D 5E by Roll20".
  */
 
 import {ai} from '@/ai/genkit';
@@ -24,7 +23,7 @@ const GenerateNpcOutputSchema = z.object({
   alignment: z.string(),
   motivations: z.string().describe('O que move este NPC agora?'),
   secrets: z.string().describe('Algo que ele esconde dos jogadores.'),
-  roll20Macro: z.string().describe('Uma macro do Roll20 usando &{template:default} que mostra os principais atributos, ataques e defesas para uso imediato no chat.'),
+  roll20Macro: z.string().describe('Uma macro do Roll20 usando &{template:npc} que mostra os principais atributos, ataques e defesas compatível com a ficha oficial 5E by Roll20.'),
 });
 export type GenerateNpcOutput = z.infer<typeof GenerateNpcOutputSchema>;
 
@@ -48,7 +47,9 @@ Gere um NPC de D&D 5e altamente detalhado e pronto para um jogo de Sandbox Polí
 O NPC deve ter profundidade, motivações conflitantes e um segredo que pode ser um gancho de trama.
 
 ALÉM DISSO, gere uma macro para Roll20 no campo "roll20Macro".
-A macro deve usar o template padrão: &{template:default} {{name=FICHA: NomeDoNPC}} {{Raça=Raça}} {{Classe=Classe}} {{CA=Valor}} {{HP=Valor}} {{Ataque=[[1d20+Bônus]]}} {{Dano=[[Dado+Bônus]]}} {{Segredo/Nota=Descrição Curta}}.
+A macro deve usar o template oficial da ficha 5E do Roll20: &{template:npc}.
+Estrutura esperada:
+&{template:npc} {{name=Nome}} {{npc_type=Raça Classe}} {{npc_alignment=Alinhamento}} {{npc_ac=Valor}} {{npc_hp=Valor}} {{npc_speed=Valor}} {{npc_str=For (Mod)}} {{npc_dex=Des (Mod)}} {{npc_con=Con (Mod)}} {{npc_int=Int (Mod)}} {{npc_wis=Sab (Mod)}} {{npc_cha=Car (Mod)}} {{description=Descrição Curta}} {{actions=Ação Principal}}.
 
 CONTEXTO: {{{context}}}
 {{#if race}}RAÇA DESEJADA: {{{race}}}{{/if}}

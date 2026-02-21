@@ -134,13 +134,14 @@ function MonsterStatblock({ result }: { result: any }) {
       return `${val} (${mod >= 0 ? '+' : ''}${mod})`;
     };
 
-    let macro = `&{template:default} {{name=BESTIÁRIO: ${result.name}}} {{Tipo=${result.size} ${result.type}}} {{Alinhamento=${result.alignment}}} {{CA=${result.armor_class}}} {{HP=${result.hit_points} (${result.hit_dice})}} {{Deslocamento=${result.speed.walk || result.speed}}} {{CR=${result.challenge_rating}}}`;
+    // Usando &{template:npc} da ficha oficial 5E by Roll20
+    let macro = `&{template:npc} {{name=${result.name}}} {{npc_type=${result.size} ${result.type}}} {{npc_alignment=${result.alignment}}} {{npc_ac=${result.armor_class}}} {{npc_hp=${result.hit_points}}} {{npc_speed=${result.speed.walk || result.speed}}} {{npc_challenge=${result.challenge_rating}}}`;
     
-    macro += ` {{ATRIBUTOS=FOR ${modStr(result.strength)} | DES ${modStr(result.dexterity)} | CON ${modStr(result.constitution)} | INT ${modStr(result.intelligence)} | SAB ${modStr(result.wisdom)} | CAR ${modStr(result.charisma)}}}`;
+    macro += ` {{npc_str=${modStr(result.strength)}}} {{npc_dex=${modStr(result.dexterity)}}} {{npc_con=${modStr(result.constitution)}}} {{npc_int=${modStr(result.intelligence)}}} {{npc_wis=${modStr(result.wisdom)}}} {{npc_cha=${modStr(result.charisma)}}}`;
 
     if (result.actions && result.actions.length > 0) {
-      const actionsSummary = result.actions.slice(0, 3).map((a: any) => `**${a.name}**: ${a.desc.substring(0, 100)}...`).join(' | ');
-      macro += ` {{Ações=${actionsSummary}}}`;
+      const actionsSummary = result.actions.slice(0, 3).map((a: any) => `**${a.name}**: ${a.desc.substring(0, 80)}...`).join('\\n');
+      macro += ` {{actions=${actionsSummary}}}`;
     }
 
     return macro;
@@ -150,7 +151,7 @@ function MonsterStatblock({ result }: { result: any }) {
     const macro = generateRoll20Macro();
     navigator.clipboard.writeText(macro);
     setCopied(true);
-    toast({ title: "Macro de Monstro Gerada!", description: "Ficha rápida copiada para o chat do Roll20." });
+    toast({ title: "Macro de Monstro Gerada!", description: "Ficha rápida copiada no padrão 5E by Roll20." });
     setTimeout(() => setCopied(false), 2000);
   };
 
