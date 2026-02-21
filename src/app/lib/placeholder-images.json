@@ -1,0 +1,17 @@
+
+{
+  "placeholderImages": [
+    {
+      "id": "hero-dnd",
+      "description": "Epic fantasy landscape with a dragon flying over a castle",
+      "imageUrl": "https://picsum.photos/seed/dnd1/1200/600",
+      "imageHint": "fantasy castle dragon"
+    },
+    {
+      "id": "parchment-bg",
+      "description": "Old parchment texture",
+      "imageUrl": "https://picsum.photos/seed/paper/800/800",
+      "imageHint": "old parchment texture"
+    }
+  ]
+}
