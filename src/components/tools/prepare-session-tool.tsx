@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useState } from 'react';
-import { BookOpen, Loader2, Save, Globe, Map as MapIcon, Send, Sparkles, X, ChevronLeft } from 'lucide-react';
+import { BookOpen, Loader2, Save, Globe, Map as MapIcon, Send, Sparkles, X, ChevronLeft, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
   const [formData, setFormData] = useState({
     title: activeSession?.title || '',
     mapDescription: activeSession?.mapDescription || '',
+    mapImageUrl: activeSession?.mapImageUrl || '',
     worldLore: activeSession?.worldLore || '',
     currentAgendas: activeSession?.currentAgendas || ''
   });
@@ -65,7 +67,6 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
     if (!user || !db || !result) return;
     setSaving(true);
     
-    // Generate a clean ID from title or timestamp
     const sessionId = formData.title.toLowerCase().replace(/\s+/g, '-') || `session-${Date.now()}`;
     const sessionPath = `users/${user.uid}/campaigns/default-campaign/sessions/${sessionId}`;
     const sessionDocRef = doc(db, sessionPath);
@@ -81,9 +82,11 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
       datePreparedOrPlayed: new Date().toISOString(),
       sessionNumber: 1,
       description: formData.worldLore,
+      involvedFactionIds: [],
+      involvedNpcIds: [],
+      involvedLocationIds: []
     };
 
-    // Save to Firestore without awaiting to keep UI fluid
     setDoc(sessionDocRef, dataToSave, { merge: true })
       .then(() => {
         toast({
@@ -117,16 +120,30 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
             />
           </div>
 
-          <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
-              <MapIcon size={12} className="text-primary" /> Geografia e Locais
-            </label>
-            <Textarea 
-              placeholder="Descreva o mapa, cidades, biomas ou o calabouço principal..."
-              value={formData.mapDescription}
-              onChange={(e) => setFormData({...formData, mapDescription: e.target.value})}
-              className="bg-background/30 border-white/5 h-32 text-xs resize-none"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
+                <MapIcon size={12} className="text-primary" /> Descrição do Mapa
+              </label>
+              <Textarea 
+                placeholder="Geografia, cidades, biomas..."
+                value={formData.mapDescription}
+                onChange={(e) => setFormData({...formData, mapDescription: e.target.value})}
+                className="bg-background/30 border-white/5 h-24 text-xs resize-none"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-2">
+                <LinkIcon size={12} className="text-primary" /> URL do Mapa (Roll20)
+              </label>
+              <Input 
+                placeholder="Cole o link da imagem do mapa..."
+                value={formData.mapImageUrl}
+                onChange={(e) => setFormData({...formData, mapImageUrl: e.target.value})}
+                className="bg-background/30 border-white/5 h-10 text-[10px]"
+              />
+              <p className="text-[9px] text-muted-foreground italic px-1">Isso será exibido no seu dashboard.</p>
+            </div>
           </div>
 
           <div className="space-y-1">
@@ -134,10 +151,10 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
               <Globe size={12} className="text-primary" /> Lore e História do Mundo
             </label>
             <Textarea 
-              placeholder="Fatos históricos, deuses, guerras passadas ou o contexto político..."
+              placeholder="Fatos históricos, deuses, contexto político..."
               value={formData.worldLore}
               onChange={(e) => setFormData({...formData, worldLore: e.target.value})}
-              className="bg-background/30 border-white/5 h-40 text-xs resize-none"
+              className="bg-background/30 border-white/5 h-32 text-xs resize-none"
             />
           </div>
 
@@ -159,6 +176,15 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
         <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
           <ScrollArea className="flex-1 h-[50vh] pr-4">
             <div className="space-y-4">
+              {formData.mapImageUrl && (
+                <div className="rounded-2xl overflow-hidden border border-white/10 aspect-video relative group">
+                  <img src={formData.mapImageUrl} alt="Preview do Mapa" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-4">
+                    <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Mapa Ativo Detectado</span>
+                  </div>
+                </div>
+              )}
+
               <div className="p-4 bg-accent/5 border border-accent/20 rounded-2xl italic text-xs text-muted-foreground">
                 <h4 className="font-bold text-accent mb-2 uppercase tracking-widest flex items-center gap-2">
                   <BookOpen size={14} /> Resumo do Mundo

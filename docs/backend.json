@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Campaign": {
@@ -148,6 +149,11 @@
           "type": "string",
           "description": "Any hidden information, truths, vulnerabilities, or past actions that the NPC keeps concealed from others."
         },
+        "tokenImageUrl": {
+          "type": "string",
+          "description": "URL for the NPC's token image in Roll20 or similar platforms.",
+          "format": "uri"
+        },
         "factionIds": {
           "type": "array",
           "description": "References to Faction entities that the NPC is associated with, belongs to, or influences. (Relationship: Npc N:N Faction)",
@@ -207,6 +213,11 @@
         "description": {
           "type": "string",
           "description": "A detailed description of the location, including its appearance, atmosphere, history, and key characteristics."
+        },
+        "mapImageUrl": {
+          "type": "string",
+          "description": "URL for the location's tactical or regional map in Roll20.",
+          "format": "uri"
         },
         "features": {
           "type": "array",
@@ -282,7 +293,7 @@
         },
         "mapImageUrl": {
           "type": "string",
-          "description": "Optional URL to an image file of the map used for the session.",
+          "description": "Optional URL to an image file of the map used for the session, linking to Roll20 assets.",
           "format": "uri"
         },
         "involvedFactionIds": {
@@ -513,7 +524,6 @@
           ]
         }
       }
-    ],
-    "reasoning": "The proposed Firestore structure prioritizes secure, scalable, and debuggable authorization by adhering to the CORE DESIGN PRINCIPLES, especially Authorization Independence and QAPs.\n\n1.  **Authorization Independence & Denormalization:** All campaign-related data (`Campaign`, `Faction`, `Npc`, `Location`, `Session`) is nested under `/users/{userId}`. This structure inherently embeds the `ownerId` (the `userId` from the path) directly into the access context of every document. For sub-collections (`factions`, `npcs`, `locations`, `sessions`), each document *must* include a denormalized `ownerId` field, mirroring the `userId` from its parent path. This design eliminates the need for `get()` calls in security rules to check parent document ownership, thereby supporting atomic operations (transactions, batches) and greatly simplifying rule logic. For example, a `Session` document can be created without first fetching the `Campaign` to verify ownership; the `ownerId` is set at creation and verified directly against `request.auth.uid`.\n\n2.  **Clarity of Intent & Debuggability:** The hierarchical path structure `/users/{userId}/campaigns/{campaignId}/...` makes ownership explicit and immediately understandable. The inclusion of `ownerId` directly in documents further reinforces this, making security rules concise and easy to audit (e.g., `allow read, write: if request.auth.uid == resource.data.ownerId;`). Wildcard names (`{userId}`, `{campaignId}`) are descriptive and semantically consistent.\n\n3.  **DBAC (No Custom Claims):** Authorization relies solely on `request.auth.uid` matching the `userId` in the document path or the `ownerId` field within the document itself. No custom Firebase Auth claims are required, keeping the system simpler and more maintainable.\n\n4.  **QAPs (Rules are not Filters):** This structure naturally supports secure `list` operations. To retrieve a user's campaigns, the query path `/users/{request.auth.uid}/campaigns` automatically filters results by the authenticated user. Similarly, to retrieve sessions for a specific campaign, the path `/users/{request.auth.uid}/campaigns/{campaignId}/sessions` ensures that the results are implicitly filtered to only include documents the user is authorized to access (i.e., those within their owned campaign). Firestore security rules can then easily confirm that the `request.auth.uid` matches the `{userId}` in the path and the `resource.data.ownerId`.\n\n5.  **Structural Segregation:** Each collection within a campaign (e.g., `/factions`, `/npcs`) has a homogeneous security posture. All documents in these collections are owned and accessible only by the specific `userId` who owns the parent `Campaign`. There's no mixing of public/private data within the same collection, which simplifies security rules significantly.\n\n6.  **User Request 'Preparar Sessão':** The `Session` entity is designed as a sub-collection `/users/{userId}/campaigns/{campaignId}/sessions/{sessionId}` to directly address the user's request for preparing and saving sessions. All AI-generated content and preparatory details are stored within this document, adhering to the security model of the parent campaign. The mentioned webhook functionality would typically be implemented as a Cloud Function triggered by writes to these `Session` documents, sending the complete, authorized session data to the external API."
+    ]
   }
 }

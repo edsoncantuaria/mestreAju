@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useState } from 'react';
-import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target } from 'lucide-react';
+import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Link as LinkIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { generateNpc } from '@/ai/flows/generate-npc-flow';
 import { generateFaction } from '@/ai/flows/generate-faction-flow';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, collection, setDoc, deleteDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 
@@ -23,8 +24,9 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
   const db = useFirestore();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [editingToken, setEditingToken] = useState<string | null>(null);
+  const [tokenUrl, setTokenUrl] = useState('');
 
-  // Memoized queries for persistence
   const npcsQuery = useMemoFirebase(() => {
     if (!db || !user || !activeSession) return null;
     return collection(db, `users/${user.uid}/campaigns/default-campaign/npcs`);
@@ -53,6 +55,8 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
         ownerId: user!.uid,
         dateCreated: new Date().toISOString(),
         dateLastModified: new Date().toISOString(),
+        tokenImageUrl: '',
+        factionIds: []
       };
 
       await setDoc(npcRef, npcData);
@@ -62,6 +66,15 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
     } finally {
       setLoading(false);
     }
+  };
+
+  const updateToken = async (id: string) => {
+    if (!db || !user) return;
+    const npcRef = doc(db, `users/${user.uid}/campaigns/default-campaign/npcs/${id}`);
+    await updateDoc(npcRef, { tokenImageUrl: tokenUrl, dateLastModified: new Date().toISOString() });
+    setEditingToken(null);
+    setTokenUrl('');
+    toast({ title: "Token Vinculado!", description: "O visual do NPC foi atualizado." });
   };
 
   const handleGenerateFaction = async () => {
@@ -109,38 +122,58 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
         </TabsList>
 
         <TabsContent value="npcs" className="flex-1 flex flex-col mt-4 space-y-4 overflow-hidden">
-          <div className="flex gap-2">
-            <Button 
-              onClick={handleGenerateNpc} 
-              disabled={loading || !activeSession} 
-              className="flex-1 bg-primary/20 border border-primary/40 hover:bg-primary/30 text-accent gap-2 h-10"
-            >
-              {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Sparkles size={16} />}
-              Gerar NPC Sandbox
-            </Button>
-          </div>
+          <Button 
+            onClick={handleGenerateNpc} 
+            disabled={loading || !activeSession} 
+            className="w-full bg-primary/20 border border-primary/40 hover:bg-primary/30 text-accent gap-2 h-10"
+          >
+            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Sparkles size={16} />}
+            Gerar NPC Sandbox
+          </Button>
 
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-3">
               {npcs?.map((npc) => (
-                <Card key={npc.id} className="bg-black/20 border-white/5 group hover:border-accent/30 transition-all">
-                  <CardHeader className="p-3 pb-0 flex flex-row items-center justify-between space-y-0">
-                    <div>
-                      <CardTitle className="text-xs font-bold text-accent">{npc.name}</CardTitle>
-                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{npc.race} • {npc.dndClass}</p>
-                    </div>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => handleDelete('npcs', npc.id)}>
-                      <Trash2 size={12} />
-                    </Button>
-                  </CardHeader>
-                  <CardContent className="p-3 space-y-2">
-                    <p className="text-[10px] italic text-muted-foreground line-clamp-2">"{npc.description}"</p>
-                    <div className="flex flex-wrap gap-1">
-                      <div className="px-1.5 py-0.5 rounded bg-accent/10 border border-accent/20 text-[8px] font-bold text-accent uppercase">
-                        Motivação: {npc.motivations}
+                <Card key={npc.id} className="bg-black/20 border-white/5 group hover:border-accent/30 transition-all overflow-hidden">
+                  <div className="flex">
+                    {npc.tokenImageUrl && (
+                      <div className="w-16 h-16 shrink-0 border-r border-white/5">
+                        <img src={npc.tokenImageUrl} alt={npc.name} className="w-full h-full object-cover" />
                       </div>
+                    )}
+                    <div className="flex-1 p-3">
+                      <CardHeader className="p-0 pb-1 flex flex-row items-center justify-between space-y-0">
+                        <div>
+                          <CardTitle className="text-xs font-bold text-accent">{npc.name}</CardTitle>
+                          <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{npc.race} • {npc.dndClass}</p>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-accent" onClick={() => { setEditingToken(npc.id); setTokenUrl(npc.tokenImageUrl || ''); }}>
+                            <LinkIcon size={12} />
+                          </Button>
+                          <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-destructive" onClick={() => handleDelete('npcs', npc.id)}>
+                            <Trash2 size={12} />
+                          </Button>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-0 space-y-2">
+                        {editingToken === npc.id ? (
+                          <div className="flex gap-1 mt-2">
+                            <Input 
+                              placeholder="URL do Token Roll20" 
+                              value={tokenUrl} 
+                              onChange={(e) => setTokenUrl(e.target.value)}
+                              className="h-7 text-[9px] bg-black/40"
+                            />
+                            <Button size="sm" className="h-7 px-2 bg-primary" onClick={() => updateToken(npc.id)}><Save size={10} /></Button>
+                            <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => setEditingToken(null)}><X size={10} /></Button>
+                          </div>
+                        ) : (
+                          <p className="text-[10px] italic text-muted-foreground line-clamp-1">"{npc.description}"</p>
+                        )}
+                      </CardContent>
                     </div>
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
               {!npcs?.length && !loading && (

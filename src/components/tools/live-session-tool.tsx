@@ -1,7 +1,8 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Zap, Loader2, Sword, Plus, Trash2, PenTool, Search, Map, Info } from 'lucide-react';
+import { Zap, Loader2, Sword, Plus, Trash2, PenTool, Search, Map, Info, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateEncounterStep, type DynamicEncounterOutput } from '@/ai/flows/dynamic-encounter-flow';
@@ -19,8 +20,8 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
   const [currentSituation, setCurrentSituation] = useState('');
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
-  // Auto-fill starting situation if a session is loaded
   useEffect(() => {
     if (activeSession && history.length === 0) {
       const startingHook = activeSession.plotHooks?.[0] || '';
@@ -73,6 +74,25 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
 
   return (
     <div className="space-y-4 h-full flex flex-col">
+      {activeSession?.mapImageUrl && (
+        <div className="mb-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full text-[10px] h-8 gap-2 bg-primary/5 border-primary/20 hover:bg-primary/10"
+            onClick={() => setShowMap(!showMap)}
+          >
+            <Map size={14} className="text-primary" />
+            {showMap ? 'Ocultar Mapa Principal' : 'Ver Mapa do Roll20'}
+          </Button>
+          {showMap && (
+            <div className="mt-2 rounded-xl overflow-hidden border border-white/10 animate-in fade-in zoom-in-95 duration-300">
+              <img src={activeSession.mapImageUrl} alt="Mapa Principal" className="w-full h-auto" />
+            </div>
+          )}
+        </div>
+      )}
+
       {history.length === 0 ? (
         <div className="space-y-4 animate-in fade-in duration-500">
           {!activeSession && (
@@ -133,23 +153,6 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
                               </Button>
                             </TooltipTrigger>
                             <TooltipContent><p className="text-[10px]">Gerar Documento</p></TooltipContent>
-                          </Tooltip>
-                          
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                className="h-6 w-6 text-accent hover:bg-accent/20"
-                                onClick={() => onContextAction('analysis', { 
-                                  situation: step.narrativa,
-                                  npcs: step.detalheOculto
-                                })}
-                              >
-                                <Search size={12} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p className="text-[10px]">Analisar Contexto</p></TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       </div>
