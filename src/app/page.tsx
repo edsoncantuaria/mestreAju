@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -176,7 +177,7 @@ function ScreenDungeonMasterContent() {
   const [partyMembers, setPartyMembers] = useState<PartyMember[]>([
     { id: '1', name: 'Herói 1', level: 1, race: 'Humano', class: 'Guerreiro' }
   ]);
-  const [activeSession, setActiveSession] = useState<any | null>(null);
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
@@ -188,7 +189,14 @@ function ScreenDungeonMasterContent() {
   }, [db, user]);
   const { data: userProfile, isLoading: loadingProfile } = useDoc(userDocRef);
 
-  // Memoized query to fetch sessions from Firestore
+  // Real-time listener for the active session
+  const activeSessionDocRef = useMemoFirebase(() => {
+    if (!db || !user || !activeSessionId) return null;
+    return doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
+  }, [db, user, activeSessionId]);
+  const { data: activeSession, isLoading: loadingActiveSession } = useDoc(activeSessionDocRef);
+
+  // Memoized query to fetch all sessions from Firestore for the selection modal
   const sessionsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
     return query(
@@ -201,12 +209,12 @@ function ScreenDungeonMasterContent() {
 
   // Restore session from Firestore Profile or localStorage
   useEffect(() => {
-    if (!loadingSessions && !loadingProfile && sessions && sessions.length > 0 && !activeSession) {
+    if (!loadingSessions && !loadingProfile && sessions && sessions.length > 0 && !activeSessionId) {
       const savedSessionId = userProfile?.lastActiveSessionId || localStorage.getItem('mestreaju_active_session_id');
       if (savedSessionId) {
         const found = sessions.find((s: any) => s.id === savedSessionId);
         if (found) {
-          setActiveSession(found);
+          setActiveSessionId(found.id);
           toast({ title: "Sessão Restaurada", description: `Retomando crônica: ${found.title}` });
         }
       }
@@ -214,7 +222,7 @@ function ScreenDungeonMasterContent() {
     } else if (!loadingSessions && !loadingProfile) {
       setIsRestoringSession(false);
     }
-  }, [loadingSessions, loadingProfile, sessions, activeSession, userProfile, toast]);
+  }, [loadingSessions, loadingProfile, sessions, activeSessionId, userProfile, toast]);
 
   const [sharedContext, setSharedContext] = useState({
     lastNarrative: '',
@@ -289,7 +297,7 @@ function ScreenDungeonMasterContent() {
   };
 
   const handleSelectSession = (session: any) => {
-    setActiveSession(session);
+    setActiveSessionId(session.id);
     localStorage.setItem('mestreaju_active_session_id', session.id);
     
     // Persist active session to Firestore user profile
@@ -314,7 +322,7 @@ function ScreenDungeonMasterContent() {
 
   const handleSignOut = () => {
     signOut(auth);
-    setActiveSession(null);
+    setActiveSessionId(null);
     localStorage.removeItem('mestreaju_active_session_id');
     toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
   };
@@ -341,7 +349,7 @@ function ScreenDungeonMasterContent() {
   };
 
   useEffect(() => {
-    if (user && !activeSession && !loadingSessions && !loadingProfile && !isRestoringSession) {
+    if (user && !activeSessionId && !loadingSessions && !loadingProfile && !isRestoringSession) {
       if (!sessions || sessions.length === 0) {
         setIsModalOpen(true);
         setShowNewSessionForm(true);
@@ -349,7 +357,7 @@ function ScreenDungeonMasterContent() {
         setIsModalOpen(true);
       }
     }
-  }, [user, activeSession, loadingSessions, loadingProfile, sessions, isRestoringSession]);
+  }, [user, activeSessionId, loadingSessions, loadingProfile, sessions, isRestoringSession]);
 
   if (isUserLoading || (user && isRestoringSession)) {
     return (
