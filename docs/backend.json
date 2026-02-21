@@ -154,6 +154,10 @@
           "description": "URL for the NPC's token image in Roll20 or similar platforms.",
           "format": "uri"
         },
+        "roll20Macro": {
+          "type": "string",
+          "description": "A Roll20 Roll Template macro that acts as a quick statblock for the NPC."
+        },
         "factionIds": {
           "type": "array",
           "description": "References to Faction entities that the NPC is associated with, belongs to, or influences. (Relationship: Npc N:N Faction)",
@@ -168,7 +172,7 @@
         },
         "dateLastModified": {
           "type": "string",
-          "description": "Timestamp indicating when the NPC record was last updated.",
+          "description": "Timestamp indicating when the campaign record was last updated.",
           "format": "date-time"
         }
       },

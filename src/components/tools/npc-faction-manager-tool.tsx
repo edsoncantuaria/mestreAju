@@ -2,7 +2,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Link as LinkIcon } from 'lucide-react';
+import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Link as LinkIcon, Terminal, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,9 +11,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { generateNpc } from '@/ai/flows/generate-npc-flow';
 import { generateFaction } from '@/ai/flows/generate-faction-flow';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, collection, setDoc, deleteDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, collection, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface NpcFactionManagerToolProps {
   activeSession: any | null;
@@ -26,6 +26,7 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
   const [loading, setLoading] = useState(false);
   const [editingToken, setEditingToken] = useState<string | null>(null);
   const [tokenUrl, setTokenUrl] = useState('');
+  const [copiedMacro, setCopiedMacro] = useState<string | null>(null);
 
   const npcsQuery = useMemoFirebase(() => {
     if (!db || !user || !activeSession) return null;
@@ -66,6 +67,13 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyMacro = (macro: string) => {
+    navigator.clipboard.writeText(macro);
+    setCopiedMacro(macro);
+    toast({ title: "Ficha Copiada!", description: "Cole no chat do Roll20 para ver a ficha rápida." });
+    setTimeout(() => setCopiedMacro(null), 2000);
   };
 
   const updateToken = async (id: string) => {
@@ -136,9 +144,13 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
               {npcs?.map((npc) => (
                 <Card key={npc.id} className="bg-black/20 border-white/5 group hover:border-accent/30 transition-all overflow-hidden">
                   <div className="flex">
-                    {npc.tokenImageUrl && (
+                    {npc.tokenImageUrl ? (
                       <div className="w-16 h-16 shrink-0 border-r border-white/5">
                         <img src={npc.tokenImageUrl} alt={npc.name} className="w-full h-full object-cover" />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 shrink-0 border-r border-white/5 bg-accent/5 flex items-center justify-center text-accent/20">
+                        <UserCircle size={24} />
                       </div>
                     )}
                     <div className="flex-1 p-3">
@@ -148,6 +160,21 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
                           <p className="text-[9px] text-muted-foreground uppercase tracking-wider">{npc.race} • {npc.dndClass}</p>
                         </div>
                         <div className="flex gap-1">
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 opacity-0 group-hover:opacity-100 text-primary" 
+                                  onClick={() => copyMacro(npc.roll20Macro)}
+                                >
+                                  {copiedMacro === npc.roll20Macro ? <Check size={12} /> : <Terminal size={12} />}
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent><p className="text-[10px]">Copiar Ficha Rápida Roll20</p></TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100 text-accent" onClick={() => { setEditingToken(npc.id); setTokenUrl(npc.tokenImageUrl || ''); }}>
                             <LinkIcon size={12} />
                           </Button>
