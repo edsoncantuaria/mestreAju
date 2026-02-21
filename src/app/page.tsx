@@ -27,7 +27,8 @@ import {
   UserPlus,
   UserCircle,
   Trash2,
-  User
+  User,
+  Terminal
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -177,6 +178,7 @@ function ScreenDungeonMasterContent() {
   const [activeSession, setActiveSession] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
+  const [isRestoringSession, setIsRestoringSession] = useState(true);
 
   // Memoized query to fetch sessions from Firestore
   const sessionsQuery = useMemoFirebase(() => {
@@ -188,6 +190,23 @@ function ScreenDungeonMasterContent() {
   }, [db, user]);
 
   const { data: sessions, isLoading: loadingSessions } = useCollection(sessionsQuery);
+
+  // Restore session from localStorage on mount/load
+  useEffect(() => {
+    if (!loadingSessions && sessions && sessions.length > 0 && !activeSession) {
+      const savedSessionId = localStorage.getItem('mestreaju_active_session_id');
+      if (savedSessionId) {
+        const found = sessions.find((s: any) => s.id === savedSessionId);
+        if (found) {
+          setActiveSession(found);
+          toast({ title: "Sessão Restaurada", description: `Retomando crônica: ${found.title}` });
+        }
+      }
+      setIsRestoringSession(false);
+    } else if (!loadingSessions) {
+      setIsRestoringSession(false);
+    }
+  }, [loadingSessions, sessions, activeSession, toast]);
 
   const [sharedContext, setSharedContext] = useState({
     lastNarrative: '',
@@ -263,6 +282,7 @@ function ScreenDungeonMasterContent() {
 
   const handleSelectSession = (session: any) => {
     setActiveSession(session);
+    localStorage.setItem('mestreaju_active_session_id', session.id);
     setIsModalOpen(false);
     setShowNewSessionForm(false);
     toast({ title: "Mundo Carregado", description: `A crônica "${session.title}" está ativa.` });
@@ -278,6 +298,7 @@ function ScreenDungeonMasterContent() {
   const handleSignOut = () => {
     signOut(auth);
     setActiveSession(null);
+    localStorage.removeItem('mestreaju_active_session_id');
     toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
   };
 
@@ -303,15 +324,17 @@ function ScreenDungeonMasterContent() {
   };
 
   useEffect(() => {
-    if (user && !activeSession && !loadingSessions && (!sessions || sessions.length === 0)) {
-      setIsModalOpen(true);
-      setShowNewSessionForm(true);
-    } else if (user && !activeSession && !loadingSessions) {
-      setIsModalOpen(true);
+    if (user && !activeSession && !loadingSessions && !isRestoringSession) {
+      if (!sessions || sessions.length === 0) {
+        setIsModalOpen(true);
+        setShowNewSessionForm(true);
+      } else {
+        setIsModalOpen(true);
+      }
     }
-  }, [user, activeSession, loadingSessions, sessions]);
+  }, [user, activeSession, loadingSessions, sessions, isRestoringSession]);
 
-  if (isUserLoading) {
+  if (isUserLoading || (user && isRestoringSession)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
         <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
