@@ -8,15 +8,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { generateNarrativeText, type GenerateNarrativeTextOutput } from '@/ai/flows/generate-narrative-text-flow';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 interface NarrativeGeneratorToolProps {
-  sharedContext?: {
-    messageContent?: string;
-    documentType?: 'carta' | 'rumor' | 'documento';
-  };
+  activeSession: any | null;
 }
 
-export function NarrativeGeneratorTool({ sharedContext }: NarrativeGeneratorToolProps) {
+export function NarrativeGeneratorTool({ activeSession }: NarrativeGeneratorToolProps) {
+  const { user } = useUser();
+  const db = useFirestore();
+  
   const [formData, setFormData] = useState({
     worldLore: '',
     documentType: 'carta' as 'carta' | 'rumor' | 'documento',
@@ -28,23 +30,61 @@ export function NarrativeGeneratorTool({ sharedContext }: NarrativeGeneratorTool
   const [result, setResult] = useState<GenerateNarrativeTextOutput | null>(null);
   const [copied, setCopied] = useState(false);
 
-  // Pick up context from the Mind Map
+  // 1. Sync local form state with Firestore Tool State
   useEffect(() => {
-    if (sharedContext?.messageContent) {
+    if (activeSession?.toolStates?.narrative) {
       setFormData(prev => ({
         ...prev,
-        messageContent: sharedContext.messageContent || '',
-        documentType: sharedContext.documentType || prev.documentType
+        ...activeSession.toolStates.narrative
       }));
     }
-  }, [sharedContext]);
+    if (activeSession?.toolStates?.narrative_result) {
+      setResult(activeSession.toolStates.narrative_result);
+    }
+  }, [activeSession?.id]);
+
+  // 2. Pickup and CLEAR incoming Global Context from Live Session
+  useEffect(() => {
+    if (activeSession?.activeContext?.targetTool === 'narrative') {
+      const incomingData = activeSession.activeContext.data;
+      
+      setFormData(prev => ({
+        ...prev,
+        messageContent: incomingData.messageContent || prev.messageContent,
+        documentType: incomingData.documentType || prev.documentType
+      }));
+
+      // Clear the context in Firestore so it doesn't re-trigger on every reload
+      if (db && user && activeSession.id) {
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, { 'activeContext': null });
+      }
+    }
+  }, [activeSession?.activeContext, db, user, activeSession?.id]);
+
+  const persistToolState = async (updates: any) => {
+    if (!db || !user || !activeSession) return;
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+    updateDoc(sessionRef, { 
+      [`toolStates.narrative`]: { ...formData, ...updates } 
+    });
+  };
 
   const handleGenerate = async () => {
     if (!formData.messageContent.trim()) return;
     setLoading(true);
     try {
-      const data = await generateNarrativeText(formData);
+      const data = await generateNarrativeText({
+        ...formData,
+        worldLore: activeSession?.worldLore || formData.worldLore
+      });
       setResult(data);
+      
+      // Persist the result as well
+      if (db && user && activeSession.id) {
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, { 'toolStates.narrative_result': data });
+      }
     } catch (error) {
       console.error(error);
     } finally {
@@ -59,22 +99,24 @@ export function NarrativeGeneratorTool({ sharedContext }: NarrativeGeneratorTool
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const updateForm = (updates: any) => {
+    setFormData(prev => {
+      const newState = { ...prev, ...updates };
+      persistToolState(updates);
+      return newState;
+    });
+  };
+
   return (
     <div className="space-y-4">
       {!result && !loading ? (
         <div className="space-y-3 animate-in fade-in duration-300">
-          {sharedContext?.messageContent && (
-            <div className="flex items-center gap-2 p-2 bg-purple-500/10 border border-purple-500/20 rounded text-[9px] text-purple-400">
-              <LinkIcon size={10} /> Contexto da Sessão Ativa Aplicado
-            </div>
-          )}
-          
           <div className="grid grid-cols-2 gap-2">
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-widest">Tipo</label>
               <Select 
                 value={formData.documentType} 
-                onValueChange={(val: any) => setFormData({...formData, documentType: val})}
+                onValueChange={(val: any) => updateForm({ documentType: val })}
               >
                 <SelectTrigger className="h-8 bg-background/30 border-white/5 text-[10px]">
                   <SelectValue />
@@ -90,7 +132,7 @@ export function NarrativeGeneratorTool({ sharedContext }: NarrativeGeneratorTool
               <label className="text-[10px] font-bold uppercase tracking-widest">Tom</label>
               <Input 
                 value={formData.tone} 
-                onChange={(e) => setFormData({...formData, tone: e.target.value})}
+                onChange={(e) => updateForm({ tone: e.target.value })}
                 placeholder="Ex: Arcaico..."
                 className="h-8 bg-background/30 border-white/5 text-[10px]"
               />
@@ -102,7 +144,7 @@ export function NarrativeGeneratorTool({ sharedContext }: NarrativeGeneratorTool
             <Textarea 
               placeholder="O que o texto deve transmitir?"
               value={formData.messageContent}
-              onChange={(e) => setFormData({...formData, messageContent: e.target.value})}
+              onChange={(e) => updateForm({ messageContent: e.target.value })}
               className="bg-background/30 border-white/5 h-24 text-[10px] leading-relaxed"
             />
           </div>
@@ -140,7 +182,13 @@ export function NarrativeGeneratorTool({ sharedContext }: NarrativeGeneratorTool
             </div>
           </div>
           
-          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => {
+            setResult(null);
+            if (db && user && activeSession.id) {
+               const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+               updateDoc(sessionRef, { 'toolStates.narrative_result': null });
+            }
+          }}>
             Escrever Outro
           </Button>
         </div>

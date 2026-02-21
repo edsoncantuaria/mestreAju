@@ -196,6 +196,21 @@ function ScreenDungeonMasterContent() {
   }, [db, user, activeSessionId]);
   const { data: activeSession, isLoading: loadingActiveSession } = useDoc(activeSessionDocRef);
 
+  // Sync active tools and UI state with Firestore for persistence
+  useEffect(() => {
+    if (activeSession?.uiState?.activeTools) {
+      setActiveTools(activeSession.uiState.activeTools);
+    }
+  }, [activeSession?.id]);
+
+  const updateActiveTools = async (tools: ToolId[]) => {
+    setActiveTools(tools);
+    if (db && user && activeSessionId) {
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
+      updateDoc(sessionRef, { 'uiState.activeTools': tools });
+    }
+  };
+
   // Memoized query to fetch all sessions from Firestore for the selection modal
   const sessionsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -215,7 +230,6 @@ function ScreenDungeonMasterContent() {
         const found = sessions.find((s: any) => s.id === savedSessionId);
         if (found) {
           setActiveSessionId(found.id);
-          toast({ title: "Sessão Restaurada", description: `Retomando crônica: ${found.title}` });
         }
       }
       setIsRestoringSession(false);
@@ -223,13 +237,6 @@ function ScreenDungeonMasterContent() {
       setIsRestoringSession(false);
     }
   }, [loadingSessions, loadingProfile, sessions, activeSessionId, userProfile, toast]);
-
-  const [sharedContext, setSharedContext] = useState({
-    lastNarrative: '',
-    lastSecret: '',
-    lastNPCs: '',
-    lastFactions: ''
-  });
 
   const tools = [
     { 
@@ -291,9 +298,10 @@ function ScreenDungeonMasterContent() {
   ] as const;
 
   const toggleTool = (id: ToolId) => {
-    setActiveTools(prev => 
-      prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
-    );
+    const newTools = activeTools.includes(id) 
+      ? activeTools.filter(t => t !== id) 
+      : [...activeTools, id];
+    updateActiveTools(newTools);
   };
 
   const handleSelectSession = (session: any) => {
@@ -313,11 +321,26 @@ function ScreenDungeonMasterContent() {
     toast({ title: "Mundo Carregado", description: `A crônica "${session.title}" está ativa.` });
   };
 
-  const handleToolAction = (targetToolId: ToolId, data: any) => {
+  const handleContextAction = async (targetToolId: ToolId, data: any) => {
+    if (!db || !user || !activeSessionId) return;
+
+    // 1. Ensure the tool is open
     if (!activeTools.includes(targetToolId)) {
-      setActiveTools(prev => [...prev, targetToolId]);
+      updateActiveTools([...activeTools, targetToolId]);
     }
-    setSharedContext(prev => ({ ...prev, ...data }));
+
+    // 2. Persist the "Active Context" to Firestore so the tool picks it up
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
+    await updateDoc(sessionRef, {
+      activeContext: {
+        targetTool: targetToolId,
+        data: data,
+        timestamp: new Date().toISOString()
+      },
+      dateLastModified: new Date().toISOString()
+    });
+
+    toast({ title: "Contexto Integrado", description: `Enviando dados para ${targetToolId}...` });
   };
 
   const handleSignOut = () => {
@@ -581,9 +604,8 @@ function ScreenDungeonMasterContent() {
                   <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1 min-h-[450px]">
                     <tool.component 
                       partyInfo={{ members: partyMembers }} 
-                      sharedContext={sharedContext}
                       activeSession={activeSession}
-                      onContextAction={handleToolAction}
+                      onContextAction={handleContextAction}
                     />
                   </div>
                 </div>
