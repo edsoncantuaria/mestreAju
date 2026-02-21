@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookOpen, Loader2, Save, Globe, Map as MapIcon, Send, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Loader2, Save, Globe, Map as MapIcon, Send, Sparkles, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -13,17 +13,23 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
-export function PrepareSessionTool() {
+interface PrepareSessionToolProps {
+  onSessionLoad: (data: any) => void;
+  activeSession: any | null;
+}
+
+export function PrepareSessionTool({ onSessionLoad, activeSession }: PrepareSessionToolProps) {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
   
   const [formData, setFormData] = useState({
-    title: '',
-    mapDescription: '',
-    worldLore: '',
-    currentAgendas: ''
+    title: activeSession?.title || '',
+    mapDescription: activeSession?.mapDescription || '',
+    worldLore: activeSession?.worldLore || '',
+    currentAgendas: activeSession?.currentAgendas || ''
   });
   
   const [loading, setLoading] = useState(false);
@@ -43,6 +49,20 @@ export function PrepareSessionTool() {
     }
   };
 
+  const handleLoadToCopilot = () => {
+    if (!result) return;
+    const sessionContext = {
+      ...formData,
+      ...result,
+      loadedAt: new Date().toISOString()
+    };
+    onSessionLoad(sessionContext);
+    toast({
+      title: "Copiloto Carregado!",
+      description: "O contexto da sessão agora alimenta todas as outras ferramentas.",
+    });
+  };
+
   const saveToFirebase = async () => {
     if (!user || !db || !result) return;
     setSaving(true);
@@ -60,8 +80,8 @@ export function PrepareSessionTool() {
       dateCreated: serverTimestamp(),
       dateLastModified: serverTimestamp(),
       datePreparedOrPlayed: new Date().toISOString(),
-      sessionNumber: 1, // Mock or user input
-      description: formData.worldLore, // Mapping lore to description for backend schema
+      sessionNumber: 1,
+      description: formData.worldLore,
     };
 
     setDoc(sessionDocRef, dataToSave, { merge: true })
@@ -70,8 +90,6 @@ export function PrepareSessionTool() {
           title: "Sessão Salva!",
           description: "Os dados foram persistidos no Firebase.",
         });
-        
-        // Webhook Trigger
         triggerWebhook(dataToSave);
       })
       .catch((serverError) => {
@@ -86,7 +104,6 @@ export function PrepareSessionTool() {
   };
 
   const triggerWebhook = async (data: any) => {
-    // Exemplo de integração com sua API/Servidor
     try {
       await fetch('https://sua-api.exemplo.com/webhook/session', {
         method: 'POST',
@@ -104,7 +121,7 @@ export function PrepareSessionTool() {
 
   return (
     <div className="space-y-4 h-full flex flex-col">
-      <div className="space-y-3 shrink-0">
+      <div className="shrink-0 space-y-3">
         <div className="space-y-1">
           <label className="text-[10px] font-bold text-accent uppercase tracking-widest">Título da Preparação</label>
           <Input 
@@ -119,6 +136,9 @@ export function PrepareSessionTool() {
       <ScrollArea className="flex-1 pr-3 -mr-3">
         {!result && !loading ? (
           <div className="space-y-4 animate-in fade-in duration-300 pb-4">
+            <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-lg text-[11px] text-muted-foreground italic mb-2">
+              Esta é a primeira etapa. Defina o cenário para que o Copiloto possa te guiar durante o jogo.
+            </div>
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
                 <MapIcon size={10} /> O Mapa / Localização
@@ -135,7 +155,7 @@ export function PrepareSessionTool() {
                 <Globe size={10} /> História e Lore do Mundo
               </label>
               <Textarea 
-                placeholder="Qual o contexto político e histórico atual?"
+                placeholder="Qual o contexto político e histórico atual? Isso alimentará os rumores e a escrita."
                 value={formData.worldLore}
                 onChange={(e) => setFormData({...formData, worldLore: e.target.value})}
                 className="bg-background/30 border-white/5 h-32 text-xs resize-none"
@@ -146,7 +166,7 @@ export function PrepareSessionTool() {
               disabled={loading || !formData.mapDescription || !formData.worldLore}
               className="w-full bg-primary hover:bg-primary/80 font-headline"
             >
-              Gerar Estrutura de Sessão
+              Forjar Contexto de Sessão
             </Button>
           </div>
         ) : null}
@@ -154,36 +174,45 @@ export function PrepareSessionTool() {
         {loading && (
           <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
             <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
-            <p className="font-headline italic text-xs text-center">Consultando as Crônicas do Mundo...</p>
+            <p className="font-headline italic text-xs text-center">Consultando as Crônicas do Mundo para gerar ganchos...</p>
           </div>
         )}
 
         {result && !loading && (
           <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500 pb-4">
-            <div className="grid grid-cols-1 gap-3">
-              <Card className="border-white/5 bg-black/40">
-                <CardHeader className="py-2 px-3 border-b border-white/5">
-                  <CardTitle className="text-[10px] font-headline uppercase tracking-widest text-accent">Ganchos de Trama</CardTitle>
-                </CardHeader>
-                <CardContent className="p-3">
-                  <ul className="space-y-2">
-                    {result.plotHooks.map((h, i) => (
-                      <li key={i} className="text-[11px] text-muted-foreground flex gap-2">
-                        <span className="text-primary">•</span> {h}
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handleLoadToCopilot}
+                className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-headline gap-2 h-12 shadow-lg shadow-accent/20"
+              >
+                <Sparkles size={18} /> CARREGAR NO COPILOTO
+              </Button>
+              
+              <div className="grid grid-cols-1 gap-3">
+                <Card className="border-white/5 bg-black/40">
+                  <CardHeader className="py-2 px-3 border-b border-white/5">
+                    <CardTitle className="text-[10px] font-headline uppercase tracking-widest text-accent">Ganchos Gerados</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3">
+                    <ul className="space-y-2">
+                      {result.plotHooks.map((h, i) => (
+                        <li key={i} className="text-[11px] text-muted-foreground flex gap-2">
+                          <span className="text-primary font-bold">•</span> {h}
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
 
-              <Card className="border-white/5 bg-black/40">
-                <CardHeader className="py-2 px-3 border-b border-white/5">
-                  <CardTitle className="text-[10px] font-headline uppercase tracking-widest text-primary">Intriga Política</CardTitle>
-                </CardHeader>
-                <CardContent className="p-3 text-[11px] text-muted-foreground italic leading-relaxed">
-                  {result.politicalIntrigueSummary}
-                </CardContent>
-              </Card>
+                <Card className="border-white/5 bg-black/40">
+                  <CardHeader className="py-2 px-3 border-b border-white/5">
+                    <CardTitle className="text-[10px] font-headline uppercase tracking-widest text-primary">Conflitos Ativos</CardTitle>
+                  </CardHeader>
+                  <CardContent className="p-3 text-[11px] text-muted-foreground leading-relaxed">
+                    {result.activeConflicts.join(' ')}
+                  </CardContent>
+                </Card>
+              </div>
             </div>
 
             <div className="flex gap-2">
@@ -202,7 +231,7 @@ export function PrepareSessionTool() {
                 disabled={saving || !user}
               >
                 {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-                Salvar & Sincronizar
+                Salvar & Webhook
               </Button>
             </div>
           </div>

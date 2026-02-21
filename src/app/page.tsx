@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Scroll, 
   Search, 
@@ -15,7 +15,8 @@ import {
   Shield,
   Activity,
   Link as LinkIcon,
-  BookOpen
+  BookOpen,
+  Sparkles
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -30,13 +31,17 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { FirebaseClientProvider } from '@/firebase';
+import { Badge } from '@/components/ui/badge';
 
 type ToolId = 'live' | 'summary' | 'analysis' | 'narrative' | 'sandbox' | 'consequences' | 'prepare';
 
 function ScreenDungeonMasterContent() {
-  const [activeTools, setActiveTools] = useState<ToolId[]>(['prepare', 'live']);
+  const [activeTools, setActiveTools] = useState<ToolId[]>(['prepare']);
   const [partyInfo, setPartyInfo] = useState({ playerCount: 4, averageLevel: 1 });
   
+  // O contexto central que "carrega" a inteligência do mestre
+  const [activeSession, setActiveSession] = useState<any | null>(null);
+
   const [sharedContext, setSharedContext] = useState({
     lastNarrative: '',
     lastSecret: '',
@@ -49,49 +54,49 @@ function ScreenDungeonMasterContent() {
       id: 'prepare', 
       label: 'Preparar', 
       icon: BookOpen, 
-      component: (props: any) => <PrepareSessionTool {...props} />, 
+      component: (props: any) => <PrepareSessionTool {...props} onSessionLoad={handleLoadSession} />, 
       color: 'text-indigo-400' 
     },
     { 
       id: 'live', 
       label: 'Ativo', 
       icon: Activity, 
-      component: (props: any) => <LiveSessionTool {...props} />, 
+      component: (props: any) => <LiveSessionTool {...props} activeSession={activeSession} />, 
       color: 'text-rose-500' 
     },
     { 
       id: 'summary', 
       label: 'Resumo', 
       icon: Scroll, 
-      component: (props: any) => <SessionSummaryTool {...props} />, 
+      component: (props: any) => <SessionSummaryTool {...props} activeSession={activeSession} />, 
       color: 'text-blue-400' 
     },
     { 
       id: 'analysis', 
       label: 'Análise', 
       icon: Search, 
-      component: (props: any) => <ContextAnalysisTool {...props} />, 
+      component: (props: any) => <ContextAnalysisTool {...props} activeSession={activeSession} />, 
       color: 'text-amber-400' 
     },
     { 
       id: 'narrative', 
       label: 'Escrita', 
       icon: PenTool, 
-      component: (props: any) => <NarrativeGeneratorTool {...props} />, 
+      component: (props: any) => <NarrativeGeneratorTool {...props} activeSession={activeSession} />, 
       color: 'text-purple-400' 
     },
     { 
       id: 'sandbox', 
       label: 'Sandbox', 
       icon: Map, 
-      component: (props: any) => <SandboxIdeasTool {...props} />, 
+      component: (props: any) => <SandboxIdeasTool {...props} activeSession={activeSession} />, 
       color: 'text-green-400' 
     },
     { 
       id: 'consequences', 
       label: 'Efeitos', 
       icon: Zap, 
-      component: (props: any) => <ConsequencesTool {...props} />, 
+      component: (props: any) => <ConsequencesTool {...props} activeSession={activeSession} />, 
       color: 'text-red-400' 
     },
   ] as const;
@@ -102,15 +107,19 @@ function ScreenDungeonMasterContent() {
     );
   };
 
-  const updateSharedContext = (newData: Partial<typeof sharedContext>) => {
-    setSharedContext(prev => ({ ...prev, ...newData }));
+  const handleLoadSession = (sessionData: any) => {
+    setActiveSession(sessionData);
+    // Ao carregar uma sessão, geralmente abrimos a ferramenta "Ativo" para começar o jogo
+    if (!activeTools.includes('live')) {
+      setActiveTools(prev => [...prev, 'live']);
+    }
   };
 
   const handleToolAction = (targetToolId: ToolId, data: any) => {
     if (!activeTools.includes(targetToolId)) {
       setActiveTools(prev => [...prev, targetToolId]);
     }
-    updateSharedContext(data);
+    setSharedContext(prev => ({ ...prev, ...data }));
   };
 
   return (
@@ -122,7 +131,9 @@ function ScreenDungeonMasterContent() {
           </div>
           <div className="hidden sm:block">
             <h1 className="font-headline font-bold text-xl tracking-tight leading-none text-accent">MestreAju</h1>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-1">Copiloto Conectado</p>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold mt-1">
+              {activeSession ? 'Sessão Ativa: ' + activeSession.title : 'Modo Preparação'}
+            </p>
           </div>
         </div>
 
@@ -156,6 +167,11 @@ function ScreenDungeonMasterContent() {
         </nav>
 
         <div className="flex items-center gap-2">
+          {activeSession && (
+            <Badge variant="outline" className="hidden lg:flex gap-1.5 border-accent/30 text-accent bg-accent/5 animate-pulse">
+              <Sparkles size={12} /> Copiloto Carregado
+            </Badge>
+          )}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="outline" size="sm" className="rounded-full border-white/10 gap-2 text-[10px] font-bold h-9">
@@ -189,9 +205,6 @@ function ScreenDungeonMasterContent() {
               </div>
             </PopoverContent>
           </Popover>
-          <Button variant="outline" size="icon" className="rounded-full border-white/10 h-9 w-9">
-            <Layout size={18} />
-          </Button>
         </div>
       </header>
 
@@ -202,12 +215,12 @@ function ScreenDungeonMasterContent() {
               <Plus size={80} className="animate-glow" />
             </div>
             <h2 className="text-3xl font-headline font-bold">Inicie sua Narrativa</h2>
-            <p className="font-body italic text-lg">Selecione ferramentas para começar o mapa mental.</p>
+            <p className="font-body italic text-lg text-center max-w-md">Abra a ferramenta de Preparação para carregar o seu mundo no Copiloto.</p>
           </div>
         ) : (
           <div className={cn(
             "grid gap-6 transition-all duration-500 items-start",
-            activeTools.length === 1 ? "grid-cols-1 max-w-3xl mx-auto" : 
+            activeTools.length === 1 ? "grid-cols-1 max-w-4xl mx-auto" : 
             activeTools.length === 2 ? "grid-cols-1 xl:grid-cols-2" : 
             "grid-cols-1 lg:grid-cols-2 xl:grid-cols-3"
           )}>
@@ -221,10 +234,10 @@ function ScreenDungeonMasterContent() {
                     <div className="flex items-center gap-2">
                       <tool.icon size={16} className={tool.id === 'live' ? 'text-rose-500 animate-pulse' : tool.color} />
                       <span className="font-headline font-bold text-xs tracking-wide uppercase text-accent/80">{tool.label}</span>
-                      {Object.values(sharedContext).some(v => v !== '') && (
-                        <div className="flex items-center gap-1 animate-pulse">
-                          <LinkIcon size={10} className="text-accent" />
-                          <span className="text-[8px] font-bold text-accent">Conectado</span>
+                      {activeSession && tool.id !== 'prepare' && (
+                        <div className="flex items-center gap-1">
+                          <LinkIcon size={10} className="text-green-500" />
+                          <span className="text-[8px] font-bold text-green-500 uppercase">Contexto Ativo</span>
                         </div>
                       )}
                     </div>
@@ -239,10 +252,11 @@ function ScreenDungeonMasterContent() {
                       </Button>
                     </div>
                   </div>
-                  <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1 min-h-[400px]">
+                  <div className="p-6 overflow-y-auto custom-scrollbar bg-card/40 flex-1 min-h-[450px]">
                     <tool.component 
                       partyInfo={partyInfo} 
                       sharedContext={sharedContext}
+                      activeSession={activeSession}
                       onContextAction={handleToolAction}
                     />
                   </div>
@@ -259,7 +273,7 @@ function ScreenDungeonMasterContent() {
           <span className="flex items-center gap-1"><Users size={10} className="text-accent" /> PARTY: {partyInfo.playerCount}</span>
         </div>
         <div className="flex gap-4">
-          <span className="text-accent">Copiloto Supremo Ativo</span>
+          <span className="text-accent">{activeSession ? 'Sessão: ' + activeSession.title : 'Aguardando Preparação'}</span>
         </div>
       </footer>
     </div>

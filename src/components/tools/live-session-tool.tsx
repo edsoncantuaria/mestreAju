@@ -1,8 +1,7 @@
-
 'use client';
 
-import React, { useState } from 'react';
-import { Zap, Loader2, Sword, Plus, Trash2, PenTool, Search, Map } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, Loader2, Sword, Plus, Trash2, PenTool, Search, Map, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateEncounterStep, type DynamicEncounterOutput } from '@/ai/flows/dynamic-encounter-flow';
@@ -11,21 +10,30 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface LiveSessionToolProps {
   partyInfo: { playerCount: number; averageLevel: number };
+  activeSession: any | null;
   onContextAction: (toolId: any, data: any) => void;
 }
 
-export function LiveSessionTool({ partyInfo, onContextAction }: LiveSessionToolProps) {
+export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: LiveSessionToolProps) {
   const [history, setHistory] = useState<DynamicEncounterOutput[]>([]);
   const [currentSituation, setCurrentSituation] = useState('');
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Auto-fill starting situation if a session is loaded
+  useEffect(() => {
+    if (activeSession && history.length === 0) {
+      const startingHook = activeSession.plotHooks?.[0] || '';
+      setCurrentSituation(`Sessão: ${activeSession.title}. Cenário: ${startingHook}`);
+    }
+  }, [activeSession, history.length]);
 
   const startSession = async () => {
     if (!currentSituation.trim()) return;
     setLoading(true);
     try {
       const step = await generateEncounterStep({
-        currentSituation,
+        currentSituation: `${currentSituation} | Lore do Mundo: ${activeSession?.worldLore || ''}`,
         partyInfo,
       });
       setHistory([step]);
@@ -41,7 +49,7 @@ export function LiveSessionTool({ partyInfo, onContextAction }: LiveSessionToolP
     const lastStep = history[history.length - 1];
     try {
       const step = await generateEncounterStep({
-        currentSituation: lastStep.narrativa,
+        currentSituation: `${lastStep.narrativa} | Lore Ativa: ${activeSession?.worldLore || ''}`,
         lastChoice: optionLabel,
         partyInfo,
         customInput: customInput.trim() || undefined,
@@ -67,6 +75,13 @@ export function LiveSessionTool({ partyInfo, onContextAction }: LiveSessionToolP
     <div className="space-y-4 h-full flex flex-col">
       {history.length === 0 ? (
         <div className="space-y-4 animate-in fade-in duration-500">
+          {!activeSession && (
+            <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center gap-3 text-[10px] text-amber-500">
+              <Info size={14} className="shrink-0" />
+              <span>Nenhuma preparação carregada. O Copiloto terá menos contexto do seu mundo.</span>
+            </div>
+          )}
+          
           <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl">
             <p className="text-[10px] text-accent uppercase font-bold mb-2 tracking-widest">Início da Cena</p>
             <Input 
@@ -77,12 +92,11 @@ export function LiveSessionTool({ partyInfo, onContextAction }: LiveSessionToolP
             />
           </div>
           <Button onClick={startSession} disabled={loading || !currentSituation} className="w-full font-headline bg-primary hover:bg-primary/90">
-            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Lançar Dados Narrativos"}
+            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : "Iniciar Sessão Ativa"}
           </Button>
         </div>
       ) : (
         <div className="space-y-4 flex-1 flex flex-col">
-          {/* Active Narrative Node */}
           <div className="flex-1 space-y-4 overflow-y-auto pr-2 custom-scrollbar">
             {history.slice(-3).map((step, idx) => {
               const isLast = idx === history.slice(-3).length - 1;
@@ -102,7 +116,6 @@ export function LiveSessionTool({ partyInfo, onContextAction }: LiveSessionToolP
                         <span className="text-[10px] font-bold text-accent">DESCOBERTA: {step.detalheOculto}</span>
                       </div>
                       
-                      {/* Integrated Actions (The Mind Map feel) */}
                       <div className="flex gap-1">
                         <TooltipProvider>
                           <Tooltip>
@@ -150,7 +163,7 @@ export function LiveSessionTool({ partyInfo, onContextAction }: LiveSessionToolP
           {loading ? (
             <div className="py-6 flex flex-col items-center justify-center text-muted-foreground">
               <Loader2 className="h-6 w-6 animate-spin text-accent mb-2" />
-              <p className="text-[10px] font-headline">Ramificando o destino...</p>
+              <p className="text-[10px] font-headline">Ramificando o destino com base no seu mundo...</p>
             </div>
           ) : (
             <div className="space-y-3 animate-in fade-in zoom-in-95 duration-300">

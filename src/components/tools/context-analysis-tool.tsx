@@ -1,8 +1,7 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Skull, ShieldCheck, Link as LinkIcon } from 'lucide-react';
+import { Search, Loader2, Skull, ShieldCheck, Link as LinkIcon, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -13,9 +12,10 @@ interface ContextAnalysisToolProps {
     situation?: string;
     npcs?: string;
   };
+  activeSession: any | null;
 }
 
-export function ContextAnalysisTool({ sharedContext }: ContextAnalysisToolProps) {
+export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAnalysisToolProps) {
   const [formData, setFormData] = useState({
     situation: '',
     pastEvents: '',
@@ -26,16 +26,16 @@ export function ContextAnalysisTool({ sharedContext }: ContextAnalysisToolProps)
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalyzeContextOutput | null>(null);
 
-  // Connect to Mind Map context
+  // Sync with active session and mind map
   useEffect(() => {
-    if (sharedContext?.situation || sharedContext?.npcs) {
-      setFormData(prev => ({
-        ...prev,
-        situation: sharedContext.situation || prev.situation,
-        npcs: sharedContext.npcs || prev.npcs
-      }));
-    }
-  }, [sharedContext]);
+    setFormData(prev => ({
+      ...prev,
+      situation: sharedContext?.situation || prev.situation,
+      npcs: sharedContext?.npcs || activeSession?.involvedNpcIds?.join(', ') || prev.npcs,
+      pastEvents: activeSession?.worldLore || prev.pastEvents,
+      factions: activeSession?.involvedFactionIds?.join(', ') || prev.factions
+    }));
+  }, [sharedContext, activeSession]);
 
   const handleAnalyze = async () => {
     if (!formData.situation.trim()) return;
@@ -54,9 +54,9 @@ export function ContextAnalysisTool({ sharedContext }: ContextAnalysisToolProps)
     <div className="space-y-4">
       {!result && !loading ? (
         <div className="space-y-3 animate-in fade-in duration-300">
-          {sharedContext?.situation && (
-            <div className="flex items-center gap-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded text-[9px] text-amber-400">
-              <LinkIcon size={10} /> Sincronizado com Sessão Ativa
+          {activeSession && (
+            <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/20 rounded text-[9px] text-green-400">
+              <Sparkles size={10} /> Copiloto usando Lore de: {activeSession.title}
             </div>
           )}
           
@@ -92,7 +92,7 @@ export function ContextAnalysisTool({ sharedContext }: ContextAnalysisToolProps)
             disabled={loading || !formData.situation.trim()}
             className="w-full bg-primary hover:bg-primary/80 font-headline"
           >
-            Revelar Intenções
+            Analisar com Base no Mundo
           </Button>
         </div>
       ) : null}
@@ -100,7 +100,7 @@ export function ContextAnalysisTool({ sharedContext }: ContextAnalysisToolProps)
       {loading && (
         <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
           <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
-          <p className="font-headline italic text-xs">Consultando o oráculo narrativo...</p>
+          <p className="font-headline italic text-xs">Cruzando dados da preparação com a cena atual...</p>
         </div>
       )}
 
@@ -115,7 +115,7 @@ export function ContextAnalysisTool({ sharedContext }: ContextAnalysisToolProps)
               <CardHeader className="py-2 px-3 border-b border-white/5">
                 <CardTitle className="text-[10px] font-headline flex items-center gap-1 uppercase tracking-widest">
                   <ShieldCheck className="text-green-500 h-3 w-3" />
-                  Consequências Naturais
+                  Caminhos de Sucesso/Falha
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 space-y-2">
@@ -131,7 +131,7 @@ export function ContextAnalysisTool({ sharedContext }: ContextAnalysisToolProps)
               <CardHeader className="py-2 px-3 border-b border-destructive/10">
                 <CardTitle className="text-[10px] font-headline flex items-center gap-1 text-destructive uppercase tracking-widest">
                   <Skull className="h-3 w-3" />
-                  Oculto sob a Superfície
+                  Consequência Oculta
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-3 text-[10px] italic text-muted-foreground">
