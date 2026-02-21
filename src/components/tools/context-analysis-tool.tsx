@@ -1,21 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Loader2, Skull, ShieldCheck, Link as LinkIcon, Sparkles } from 'lucide-react';
+import { Search, Loader2, Skull, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { analyzeContext, type AnalyzeContextOutput } from '@/ai/flows/analyze-context';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
 interface ContextAnalysisToolProps {
-  sharedContext?: {
-    situation?: string;
-    npcs?: string;
-  };
   activeSession: any | null;
 }
 
-export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAnalysisToolProps) {
+export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps) {
+  const { user } = useUser();
+  const db = useFirestore();
+
   const [formData, setFormData] = useState({
     situation: '',
     pastEvents: '',
@@ -26,27 +27,78 @@ export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAna
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalyzeContextOutput | null>(null);
 
-  // Sync with active session and mind map
+  // 1. Restaurar estado persistente do Firestore
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      situation: sharedContext?.situation || prev.situation,
-      npcs: sharedContext?.npcs || activeSession?.involvedNpcIds?.join(', ') || prev.npcs,
-      pastEvents: activeSession?.worldLore || prev.pastEvents,
-      factions: activeSession?.involvedFactionIds?.join(', ') || prev.factions
-    }));
-  }, [sharedContext, activeSession]);
+    if (activeSession?.toolStates?.analysis) {
+      setFormData(prev => ({ ...prev, ...activeSession.toolStates.analysis }));
+    }
+    if (activeSession?.toolStates?.analysis_result) {
+      setResult(activeSession.toolStates.analysis_result);
+    }
+  }, [activeSession?.id]);
+
+  // 2. Escutar contexto vindo de outras ferramentas (ex: Sessão Ativa)
+  useEffect(() => {
+    if (activeSession?.activeContext?.targetTool === 'analysis') {
+      const incomingData = activeSession.activeContext.data;
+      const newFormData = {
+        ...formData,
+        situation: incomingData.situation || formData.situation,
+        npcs: incomingData.npcs || formData.npcs,
+      };
+      
+      setFormData(newFormData);
+      persistToolState(newFormData);
+
+      // Limpar o sinalizador de contexto no Firestore
+      if (db && user && activeSession.id) {
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, { 'activeContext': null });
+      }
+    }
+  }, [activeSession?.activeContext, db, user, activeSession?.id]);
+
+  const persistToolState = async (updates: any) => {
+    if (!db || !user || !activeSession) return;
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+    updateDoc(sessionRef, { 
+      [`toolStates.analysis`]: { ...formData, ...updates } 
+    });
+  };
 
   const handleAnalyze = async () => {
     if (!formData.situation.trim()) return;
     setLoading(true);
     try {
-      const data = await analyzeContext(formData);
+      const data = await analyzeContext({
+        ...formData,
+        pastEvents: activeSession?.worldLore || formData.pastEvents,
+        factions: activeSession?.involvedFactionIds?.join(', ') || formData.factions
+      });
       setResult(data);
+      
+      if (db && user && activeSession.id) {
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, { 'toolStates.analysis_result': data });
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateForm = (updates: any) => {
+    const nextState = { ...formData, ...updates };
+    setFormData(nextState);
+    persistToolState(updates);
+  };
+
+  const resetResult = () => {
+    setResult(null);
+    if (db && user && activeSession.id) {
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+      updateDoc(sessionRef, { 'toolStates.analysis_result': null });
     }
   };
 
@@ -65,7 +117,7 @@ export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAna
             <Textarea 
               placeholder="O que está acontecendo agora?"
               value={formData.situation}
-              onChange={(e) => setFormData({...formData, situation: e.target.value})}
+              onChange={(e) => updateForm({ situation: e.target.value })}
               className="bg-background/30 border-white/5 h-20 text-xs"
             />
           </div>
@@ -74,7 +126,7 @@ export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAna
               <label className="text-[10px] font-bold text-muted-foreground uppercase">NPCs/Alvos</label>
               <Textarea 
                 value={formData.npcs}
-                onChange={(e) => setFormData({...formData, npcs: e.target.value})}
+                onChange={(e) => updateForm({ npcs: e.target.value })}
                 className="bg-background/30 border-white/5 h-12 text-[10px]"
               />
             </div>
@@ -82,7 +134,7 @@ export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAna
               <label className="text-[10px] font-bold text-muted-foreground uppercase">Facções</label>
               <Textarea 
                 value={formData.factions}
-                onChange={(e) => setFormData({...formData, factions: e.target.value})}
+                onChange={(e) => updateForm({ factions: e.target.value })}
                 className="bg-background/30 border-white/5 h-12 text-[10px]"
               />
             </div>
@@ -92,7 +144,7 @@ export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAna
             disabled={loading || !formData.situation.trim()}
             className="w-full bg-primary hover:bg-primary/80 font-headline"
           >
-            Analisar com Base no Mundo
+            Analisar Contexto
           </Button>
         </div>
       ) : null}
@@ -140,8 +192,8 @@ export function ContextAnalysisTool({ sharedContext, activeSession }: ContextAna
             </Card>
           </div>
           
-          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
-            Nova Análise
+          <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={resetResult}>
+            Limpar Análise
           </Button>
         </div>
       )}

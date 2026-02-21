@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Map, Loader2, Target, Info, ShieldAlert, ArrowRight } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Map, Loader2, Target, Info, ShieldAlert, ArrowRight, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -9,8 +9,17 @@ import { generateSandboxIdeas, type GenerateSandboxIdeasOutput } from '@/ai/flow
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
-export function SandboxIdeasTool() {
+interface SandboxIdeasToolProps {
+  activeSession: any | null;
+}
+
+export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
+  const { user } = useUser();
+  const db = useFirestore();
+
   const [formData, setFormData] = useState({
     situation: '',
     factionsContext: '',
@@ -19,16 +28,57 @@ export function SandboxIdeasTool() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateSandboxIdeasOutput | null>(null);
 
+  // 1. Restaurar do Firestore
+  useEffect(() => {
+    if (activeSession?.toolStates?.sandbox) {
+      setFormData(prev => ({ ...prev, ...activeSession.toolStates.sandbox }));
+    }
+    if (activeSession?.toolStates?.sandbox_result) {
+      setResult(activeSession.toolStates.sandbox_result);
+    }
+  }, [activeSession?.id]);
+
+  const persistToolState = async (updates: any) => {
+    if (!db || !user || !activeSession) return;
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+    updateDoc(sessionRef, { 
+      [`toolStates.sandbox`]: { ...formData, ...updates } 
+    });
+  };
+
   const handleGenerate = async () => {
     if (!formData.situation.trim()) return;
     setLoading(true);
     try {
-      const data = await generateSandboxIdeas(formData);
+      const data = await generateSandboxIdeas({
+        ...formData,
+        pastEventsSummary: activeSession?.worldLore || formData.pastEventsSummary,
+        factionsContext: activeSession?.involvedFactionIds?.join(', ') || formData.factionsContext
+      });
       setResult(data);
+      
+      if (db && user && activeSession.id) {
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, { 'toolStates.sandbox_result': data });
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const updateForm = (updates: any) => {
+    const nextState = { ...formData, ...updates };
+    setFormData(nextState);
+    persistToolState(updates);
+  };
+
+  const resetResult = () => {
+    setResult(null);
+    if (db && user && activeSession.id) {
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+      updateDoc(sessionRef, { 'toolStates.sandbox_result': null });
     }
   };
 
@@ -39,18 +89,18 @@ export function SandboxIdeasTool() {
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-accent uppercase tracking-widest">Ponto de Partida / Gancho</label>
             <Textarea 
-              placeholder="Ex: O grupo encontrou um mapa para as Ruínas de Oakhaven nas mãos de um espião da Guilda dos Ladrões..."
+              placeholder="Ex: O grupo encontrou um mapa para as Ruínas de Oakhaven..."
               value={formData.situation}
-              onChange={(e) => setFormData({...formData, situation: e.target.value})}
+              onChange={(e) => updateForm({ situation: e.target.value })}
               className="bg-background/30 border-white/5 h-24 text-xs resize-none"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contexto (Facções/NPCs)</label>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contexto de Facções</label>
             <Textarea 
-              placeholder="Quais grupos estão na região? Quais interesses estão em jogo?"
+              placeholder="Quais interesses estão em jogo?"
               value={formData.factionsContext}
-              onChange={(e) => setFormData({...formData, factionsContext: e.target.value})}
+              onChange={(e) => updateForm({ factionsContext: e.target.value })}
               className="bg-background/30 border-white/5 h-16 text-xs resize-none"
             />
           </div>
@@ -59,7 +109,7 @@ export function SandboxIdeasTool() {
             disabled={loading || !formData.situation.trim()}
             className="w-full bg-primary hover:bg-primary/80 font-headline"
           >
-            Mapear Ramificações
+            Gerar Ramificações Sandbox
           </Button>
         </div>
       ) : null}
@@ -83,7 +133,7 @@ export function SandboxIdeasTool() {
 
             <div className="space-y-3">
               <h4 className="text-[10px] font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-                <Map size={12} /> Caminhos Narrativos Possíveis
+                <Map size={12} /> Destinos Possíveis
               </h4>
               
               <Accordion type="single" collapsible className="w-full space-y-2">
@@ -102,7 +152,7 @@ export function SandboxIdeasTool() {
                       
                       <div className="space-y-2">
                         <h5 className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                          <ArrowRight size={10} /> Repercussões no Mundo
+                          <ArrowRight size={10} /> Impactos no Mundo
                         </h5>
                         <div className="grid grid-cols-1 gap-2">
                           <div className="p-2 bg-white/5 rounded border border-white/5">
@@ -118,16 +168,12 @@ export function SandboxIdeasTool() {
 
                       <div className="space-y-2">
                         <h5 className="text-[9px] font-bold uppercase tracking-widest text-purple-400 flex items-center gap-1">
-                          <ShieldAlert size={10} /> Jogo de Poder & Agendas
+                          <ShieldAlert size={10} /> Jogo de Poder
                         </h5>
                         <div className="space-y-2 text-[10px] text-muted-foreground">
                           <div className="flex gap-2">
                             <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-500 bg-green-500/5 h-4">Beneficiados</Badge>
                             <span>{path.agendas.whoGains.join(', ')}</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <Badge variant="outline" className="text-[8px] border-red-500/30 text-red-500 bg-red-500/5 h-4">Perdedores</Badge>
-                            <span>{path.agendas.whoLoses.join(', ')}</span>
                           </div>
                           <div className="p-2 bg-purple-500/5 border border-purple-500/20 rounded-lg mt-2 italic text-purple-200/70">
                             <span className="font-bold text-purple-400 block mb-1 uppercase text-[8px]">Risco de Traição</span>
@@ -141,8 +187,8 @@ export function SandboxIdeasTool() {
               </Accordion>
             </div>
             
-            <Button variant="outline" size="sm" className="w-full text-[10px] h-8 mt-4" onClick={() => setResult(null)}>
-              Resetar Sandbox
+            <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={resetResult}>
+              Nova Projeção Sandbox
             </Button>
           </div>
         </ScrollArea>

@@ -1,29 +1,73 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Zap, Loader2, Calendar, TrendingUp, Globe } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Zap, Loader2, TrendingUp, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { manageConsequences, type ManageConsequencesOutput } from '@/ai/flows/manage-consequences';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, updateDoc } from 'firebase/firestore';
 
-export function ConsequencesTool() {
+interface ConsequencesToolProps {
+  activeSession: any | null;
+}
+
+export function ConsequencesTool({ activeSession }: ConsequencesToolProps) {
+  const { user } = useUser();
+  const db = useFirestore();
+
   const [playerAction, setPlayerAction] = useState('');
   const [context, setContext] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ManageConsequencesOutput | null>(null);
 
+  // Restaurar do Firestore
+  useEffect(() => {
+    if (activeSession?.toolStates?.consequences) {
+      setPlayerAction(activeSession.toolStates.consequences.playerAction || '');
+      setContext(activeSession.toolStates.consequences.context || '');
+    }
+    if (activeSession?.toolStates?.consequences_result) {
+      setResult(activeSession.toolStates.consequences_result);
+    }
+  }, [activeSession?.id]);
+
+  const persistToolState = async (updates: any) => {
+    if (!db || !user || !activeSession) return;
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+    updateDoc(sessionRef, { 
+      [`toolStates.consequences`]: { playerAction, context, ...updates } 
+    });
+  };
+
   const handleGenerate = async () => {
     if (!playerAction.trim()) return;
     setLoading(true);
     try {
-      const data = await manageConsequences({ playerAction, context });
+      const data = await manageConsequences({ 
+        playerAction, 
+        context: context || activeSession?.worldLore || '' 
+      });
       setResult(data);
+      
+      if (db && user && activeSession.id) {
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, { 'toolStates.consequences_result': data });
+      }
     } catch (error) {
       console.error(error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const resetResult = () => {
+    setResult(null);
+    if (db && user && activeSession.id) {
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+      updateDoc(sessionRef, { 'toolStates.consequences_result': null });
     }
   };
 
@@ -34,18 +78,24 @@ export function ConsequencesTool() {
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-accent uppercase tracking-wider">Ação Crucial dos Jogadores</label>
             <Textarea 
-              placeholder="Ex: Os jogadores mataram o Barão, mas deixaram seu herdeiro fugir com os selos reais..."
+              placeholder="O que eles fizeram que mudou o rumo da história?"
               value={playerAction}
-              onChange={(e) => setPlayerAction(e.target.value)}
+              onChange={(e) => {
+                setPlayerAction(e.target.value);
+                persistToolState({ playerAction: e.target.value });
+              }}
               className="bg-background/30 border-white/5 h-20 text-xs resize-none"
             />
           </div>
           <div className="space-y-1">
-            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Situação Regional (Opcional)</label>
+            <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Contexto Adicional</label>
             <Textarea 
-              placeholder="Havia testemunhas? Como a cidade reagiu?"
+              placeholder="Opcional: detalhes da reação local..."
               value={context}
-              onChange={(e) => setContext(e.target.value)}
+              onChange={(e) => {
+                setContext(e.target.value);
+                persistToolState({ context: e.target.value });
+              }}
               className="bg-background/30 border-white/5 h-16 text-xs resize-none"
             />
           </div>
@@ -54,7 +104,7 @@ export function ConsequencesTool() {
             disabled={loading || !playerAction.trim()}
             className="w-full bg-primary hover:bg-primary/80 font-headline"
           >
-            Simular Repercussões
+            Calcular Repercussões
           </Button>
         </div>
       ) : null}
@@ -62,7 +112,7 @@ export function ConsequencesTool() {
       {loading && (
         <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
           <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
-          <p className="font-headline italic text-xs text-center">Calculando o efeito borboleta no mundo...</p>
+          <p className="font-headline italic text-xs text-center">Calculando o efeito borboleta...</p>
         </div>
       )}
 
@@ -74,25 +124,25 @@ export function ConsequencesTool() {
               data={result.shortTerm} 
               color="text-accent" 
               icon={Zap}
-              subtitle="Reações imediatas e caos local"
+              subtitle="Reações imediatas"
             />
             <ConsequenceSection 
               title="Médio Prazo (Semanas)" 
               data={result.mediumTerm} 
               color="text-primary" 
               icon={TrendingUp}
-              subtitle="Mudanças em leis, comércio e facções"
+              subtitle="Mudanças estruturais"
             />
             <ConsequenceSection 
               title="Longo Prazo (Meses/Anos)" 
               data={result.longTerm} 
               color="text-muted-foreground" 
               icon={Globe}
-              subtitle="Cicatrizes permanentes na geopolítica"
+              subtitle="Cicatrizes históricas"
             />
             
-            <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={() => setResult(null)}>
-              Nova Repercussão
+            <Button variant="outline" size="sm" className="w-full text-[10px] h-8" onClick={resetResult}>
+              Novas Consequências
             </Button>
           </div>
         </ScrollArea>
