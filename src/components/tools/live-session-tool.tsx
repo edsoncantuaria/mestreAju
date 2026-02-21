@@ -1,13 +1,13 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Zap, Loader2, Sword, Plus, Trash2, PenTool, Search, Map, Info, Image as ImageIcon } from 'lucide-react';
+import { Zap, Loader2, Sword, Plus, Trash2, PenTool, Search, Map, Info, Image as ImageIcon, Copy, Check, Terminal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { generateEncounterStep, type DynamicEncounterOutput } from '@/ai/flows/dynamic-encounter-flow';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useToast } from '@/hooks/use-toast';
 
 interface LiveSessionToolProps {
   partyInfo: { members: Array<{ level: number; race?: string; class?: string }> };
@@ -21,6 +21,8 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [copiedMacro, setCopiedMacro] = useState<string | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (activeSession && history.length === 0) {
@@ -62,6 +64,13 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
     } finally {
       setLoading(false);
     }
+  };
+
+  const copyMacro = (macro: string) => {
+    navigator.clipboard.writeText(macro);
+    setCopiedMacro(macro);
+    toast({ title: "Macro Copiada!", description: "Cole no chat do Roll20." });
+    setTimeout(() => setCopiedMacro(null), 2000);
   };
 
   const reset = () => {
@@ -135,27 +144,17 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
                         <Zap size={14} className="text-accent animate-pulse" />
                         <span className="text-[10px] font-bold text-accent">DESCOBERTA: {step.detalheOculto}</span>
                       </div>
-                      
-                      <div className="flex gap-1">
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button 
-                                size="icon" 
-                                variant="ghost" 
-                                className="h-6 w-6 text-accent hover:bg-accent/20"
-                                onClick={() => onContextAction('narrative', { 
-                                  messageContent: `Crie um documento baseado nisto: ${step.detalheOculto}. Contexto: ${step.narrativa}`,
-                                  documentType: 'documento'
-                                })}
-                              >
-                                <PenTool size={12} />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p className="text-[10px]">Gerar Documento</p></TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
+                      <Button 
+                        size="icon" 
+                        variant="ghost" 
+                        className="h-6 w-6 text-accent hover:bg-accent/20"
+                        onClick={() => onContextAction('narrative', { 
+                          messageContent: `Crie um documento baseado nisto: ${step.detalheOculto}. Contexto: ${step.narrativa}`,
+                          documentType: 'documento'
+                        })}
+                      >
+                        <PenTool size={12} />
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -172,25 +171,42 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction }: L
             <div className="space-y-3 animate-in fade-in zoom-in-95 duration-300">
               <div className="grid grid-cols-1 gap-2">
                 {lastStep?.opcoes.map((opt, i) => (
-                  <Button 
-                    key={i} 
-                    variant="outline" 
-                    className="h-auto py-3 px-4 flex flex-col items-start gap-1 border-white/10 bg-white/5 hover:bg-accent/10 hover:border-accent/50 transition-all text-left group"
-                    onClick={() => chooseOption(opt.label)}
-                  >
-                    <div className="flex w-full justify-between items-center">
-                      <span className="text-xs font-bold text-accent group-hover:text-white">{opt.label}</span>
-                      <span className={cn(
-                        "text-[8px] px-1.5 py-0.5 rounded border font-bold uppercase",
-                        opt.difficulty === 'Mortal' ? 'bg-red-500/20 text-red-500 border-red-500/50' :
-                        opt.difficulty === 'Difícil' ? 'bg-orange-500/20 text-orange-500 border-orange-500/50' :
-                        'bg-green-500/20 text-green-500 border-green-500/50'
-                      )}>
-                        {opt.difficulty}
-                      </span>
-                    </div>
-                    <span className="text-[10px] text-muted-foreground line-clamp-1">{opt.description}</span>
-                  </Button>
+                  <div key={i} className="flex gap-1">
+                    <Button 
+                      variant="outline" 
+                      className="flex-1 h-auto py-3 px-4 flex flex-col items-start gap-1 border-white/10 bg-white/5 hover:bg-accent/10 hover:border-accent/50 transition-all text-left group"
+                      onClick={() => chooseOption(opt.label)}
+                    >
+                      <div className="flex w-full justify-between items-center">
+                        <span className="text-xs font-bold text-accent group-hover:text-white">{opt.label}</span>
+                        <span className={cn(
+                          "text-[8px] px-1.5 py-0.5 rounded border font-bold uppercase",
+                          opt.difficulty === 'Mortal' ? 'bg-red-500/20 text-red-500 border-red-500/50' :
+                          opt.difficulty === 'Difícil' ? 'bg-orange-500/20 text-orange-500 border-orange-500/50' :
+                          'bg-green-500/20 text-green-500 border-green-500/50'
+                        )}>
+                          {opt.difficulty}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-muted-foreground line-clamp-1">{opt.description}</span>
+                    </Button>
+                    {opt.roll20Macro && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button 
+                              variant="outline" 
+                              className="w-10 h-auto border-white/10 bg-black/40 hover:text-accent"
+                              onClick={() => copyMacro(opt.roll20Macro!)}
+                            >
+                              {copiedMacro === opt.roll20Macro ? <Check size={14} /> : <Terminal size={14} />}
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent><p className="text-[10px]">Copiar Macro Roll20: {opt.roll20Macro}</p></TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                  </div>
                 ))}
               </div>
 

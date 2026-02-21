@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais e cálculo preciso de CR.
+ * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais e macros para Roll20.
  */
 
 import {ai, fetchDndRuleTool} from '@/ai/genkit';
@@ -30,6 +30,7 @@ const OptionSchema = z.object({
   description: z.string().describe('O que acontece nesta opção.'),
   difficulty: z.enum(['Muito Fácil', 'Fácil', 'Médio', 'Difícil', 'Mortal']).describe('Dificuldade baseada no orçamento de XP do grupo.'),
   xpValue: z.number().optional().describe('Valor total de XP planejado para o encontro.'),
+  roll20Macro: z.string().optional().describe('Um comando de chat/macro para o Roll20 (ex: /roll 1d20+5 ou comandos de ataque).'),
 });
 
 const DynamicEncounterOutputSchema = z.object({
@@ -61,13 +62,10 @@ SITUAÇÃO ATUAL: {{{currentSituation}}}
 {{#if lastChoice}}ESCOLHA ANTERIOR: {{{lastChoice}}}{{/if}}
 {{#if customInput}}O MESTRE DECIDIU: {{{customInput}}}{{/if}}
 
-INSTRUÇÕES DE CÁLCULO (DMG):
-1. Calcule o limite de XP (Easy/Medium/Hard/Deadly) para cada personagem e some-os.
-2. Ao sugerir encontros de combate, use monstros cujo XP total (ajustado pelo multiplicador de número de monstros) se encaixe nesses limites.
-3. Considere as habilidades de raça (ex: Changeling Shapechanger) ao sugerir opções sociais ou de infiltração.
-
-Gere o próximo passo da narrativa de forma fluida.
-As opções devem ser variadas. Cite monstros reais do SRD 5e e suas dificuldades.
+INSTRUÇÕES:
+1. Calcule o limite de XP (Easy/Medium/Hard/Deadly) total e sugira monstros reais do SRD 5e.
+2. Para cada opção, se houver combate ou teste, forneça um "roll20Macro" (ex: /roll 1d20+4 para iniciativa ou /roll 2d6+3 para dano de um monstro).
+3. Gere o próximo passo da narrativa de forma fluida e sandbox.
 
 Sua resposta deve ser em Português Brasileiro.`,
 });
