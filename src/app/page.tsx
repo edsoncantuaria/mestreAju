@@ -196,12 +196,17 @@ function ScreenDungeonMasterContent() {
   }, [db, user, activeSessionId]);
   const { data: activeSession, isLoading: loadingActiveSession } = useDoc(activeSessionDocRef);
 
-  // Sync active tools and UI state with Firestore for persistence
+  // Sync active tools and party from Firestore for persistence
   useEffect(() => {
-    if (activeSession?.uiState?.activeTools) {
-      setActiveTools(activeSession.uiState.activeTools);
+    if (activeSession) {
+      if (activeSession.uiState?.activeTools) {
+        setActiveTools(activeSession.uiState.activeTools);
+      }
+      if (activeSession.partyMembers) {
+        setPartyMembers(activeSession.partyMembers);
+      }
     }
-  }, [activeSession?.id]);
+  }, [activeSession?.id, activeSession?.partyMembers]);
 
   const updateActiveTools = async (tools: ToolId[]) => {
     setActiveTools(tools);
@@ -350,6 +355,13 @@ function ScreenDungeonMasterContent() {
     toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
   };
 
+  const persistParty = async (newParty: PartyMember[]) => {
+    if (db && user && activeSessionId) {
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
+      updateDoc(sessionRef, { partyMembers: newParty });
+    }
+  };
+
   const addPartyMember = () => {
     const newMember: PartyMember = {
       id: Date.now().toString(),
@@ -358,16 +370,22 @@ function ScreenDungeonMasterContent() {
       race: 'Humano',
       class: 'Guerreiro'
     };
-    setPartyMembers([...partyMembers, newMember]);
+    const newParty = [...partyMembers, newMember];
+    setPartyMembers(newParty);
+    persistParty(newParty);
   };
 
   const updateMember = (id: string, updates: Partial<PartyMember>) => {
-    setPartyMembers(partyMembers.map(m => m.id === id ? { ...m, ...updates } : m));
+    const newParty = partyMembers.map(m => m.id === id ? { ...m, ...updates } : m);
+    setPartyMembers(newParty);
+    persistParty(newParty);
   };
 
   const removeMember = (id: string) => {
     if (partyMembers.length > 1) {
-      setPartyMembers(partyMembers.filter(m => m.id !== id));
+      const newParty = partyMembers.filter(m => m.id !== id);
+      setPartyMembers(newParty);
+      persistParty(newParty);
     }
   };
 
