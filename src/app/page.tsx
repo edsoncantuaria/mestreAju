@@ -28,7 +28,8 @@ import {
   UserCircle,
   Trash2,
   User,
-  Terminal
+  Terminal,
+  Cloud
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -45,8 +46,8 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { FirebaseClientProvider, useUser, useFirestore, useCollection, useMemoFirebase, useAuth, initiateEmailSignIn, initiateEmailSignUp, initiateAnonymousSignIn } from '@/firebase';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { FirebaseClientProvider, useUser, useFirestore, useCollection, useMemoFirebase, useAuth, initiateEmailSignIn, initiateEmailSignUp, initiateAnonymousSignIn, useDoc } from '@/firebase';
+import { collection, query, orderBy, doc, updateDoc, setDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -180,6 +181,13 @@ function ScreenDungeonMasterContent() {
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
 
+  // Fetch user profile for persistent settings
+  const userDocRef = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return doc(db, 'users', user.uid);
+  }, [db, user]);
+  const { data: userProfile, isLoading: loadingProfile } = useDoc(userDocRef);
+
   // Memoized query to fetch sessions from Firestore
   const sessionsQuery = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -191,10 +199,10 @@ function ScreenDungeonMasterContent() {
 
   const { data: sessions, isLoading: loadingSessions } = useCollection(sessionsQuery);
 
-  // Restore session from localStorage on mount/load
+  // Restore session from Firestore Profile or localStorage
   useEffect(() => {
-    if (!loadingSessions && sessions && sessions.length > 0 && !activeSession) {
-      const savedSessionId = localStorage.getItem('mestreaju_active_session_id');
+    if (!loadingSessions && !loadingProfile && sessions && sessions.length > 0 && !activeSession) {
+      const savedSessionId = userProfile?.lastActiveSessionId || localStorage.getItem('mestreaju_active_session_id');
       if (savedSessionId) {
         const found = sessions.find((s: any) => s.id === savedSessionId);
         if (found) {
@@ -203,10 +211,10 @@ function ScreenDungeonMasterContent() {
         }
       }
       setIsRestoringSession(false);
-    } else if (!loadingSessions) {
+    } else if (!loadingSessions && !loadingProfile) {
       setIsRestoringSession(false);
     }
-  }, [loadingSessions, sessions, activeSession, toast]);
+  }, [loadingSessions, loadingProfile, sessions, activeSession, userProfile, toast]);
 
   const [sharedContext, setSharedContext] = useState({
     lastNarrative: '',
@@ -283,6 +291,15 @@ function ScreenDungeonMasterContent() {
   const handleSelectSession = (session: any) => {
     setActiveSession(session);
     localStorage.setItem('mestreaju_active_session_id', session.id);
+    
+    // Persist active session to Firestore user profile
+    if (db && user) {
+      setDoc(doc(db, 'users', user.uid), { 
+        lastActiveSessionId: session.id,
+        id: user.uid
+      }, { merge: true });
+    }
+    
     setIsModalOpen(false);
     setShowNewSessionForm(false);
     toast({ title: "Mundo Carregado", description: `A crônica "${session.title}" está ativa.` });
@@ -324,7 +341,7 @@ function ScreenDungeonMasterContent() {
   };
 
   useEffect(() => {
-    if (user && !activeSession && !loadingSessions && !isRestoringSession) {
+    if (user && !activeSession && !loadingSessions && !loadingProfile && !isRestoringSession) {
       if (!sessions || sessions.length === 0) {
         setIsModalOpen(true);
         setShowNewSessionForm(true);
@@ -332,7 +349,7 @@ function ScreenDungeonMasterContent() {
         setIsModalOpen(true);
       }
     }
-  }, [user, activeSession, loadingSessions, sessions, isRestoringSession]);
+  }, [user, activeSession, loadingSessions, loadingProfile, sessions, isRestoringSession]);
 
   if (isUserLoading || (user && isRestoringSession)) {
     return (
@@ -660,7 +677,7 @@ function ScreenDungeonMasterContent() {
           </span>
           <span className="opacity-30">|</span>
           <span className="flex items-center gap-1 text-green-500">
-             <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" /> CLOUD SYNC: {user.isAnonymous ? 'TEMPORÁRIO' : 'SEGURO'} ({user.uid.substring(0,6)})
+             <Cloud size={10} className={user.isAnonymous ? 'text-amber-500' : 'text-green-500'} /> CLOUD SYNC: {user.isAnonymous ? 'TEMPORÁRIO' : 'SEGURO'} ({user.uid.substring(0,6)})
           </span>
         </div>
       </footer>

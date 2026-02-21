@@ -21,10 +21,8 @@ export const fetchDndRuleTool = ai.defineTool(
   },
   async (input) => {
     try {
-      // Tenta buscar em rule-sections (mais granular)
       const response = await fetch(`https://www.dnd5eapi.co/api/rule-sections/${input.ruleIndex}`);
       if (!response.ok) {
-        // Fallback para categories
         const ruleResponse = await fetch(`https://www.dnd5eapi.co/api/rules/${input.ruleIndex}`);
         if (!ruleResponse.ok) return "Regra ou mecânica não encontrada na base SRD.";
         const ruleData = await ruleResponse.json();
@@ -34,6 +32,29 @@ export const fetchDndRuleTool = ai.defineTool(
       return `Seção: ${data.name}\n\n${data.desc || "Descrição não disponível."}`;
     } catch (e) {
       return "Erro técnico ao acessar a API de regras de D&D.";
+    }
+  }
+);
+
+/**
+ * Tool para buscar Statblocks de monstros (Open5e)
+ */
+export const fetchMonsterStatblockTool = ai.defineTool(
+  {
+    name: 'fetchMonsterStatblock',
+    description: 'Busca a ficha (statblock) oficial de um monstro do SRD 5e via Open5e API.',
+    inputSchema: z.object({
+      monsterSlug: z.string().describe('O slug do monstro em inglês (ex: "aboleth", "adult-red-dragon").'),
+    }),
+    outputSchema: z.any(),
+  },
+  async (input) => {
+    try {
+      const response = await fetch(`https://api.open5e.com/monsters/${input.monsterSlug}/`);
+      if (!response.ok) return { error: "Monstro não encontrado." };
+      return await response.json();
+    } catch (e) {
+      return { error: "Erro ao acessar a API Open5e." };
     }
   }
 );
