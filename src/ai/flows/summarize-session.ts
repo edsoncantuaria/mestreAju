@@ -1,11 +1,7 @@
 'use server';
 /**
  * @fileOverview A Genkit flow to summarize previous D&D 5e sessions, identifying key elements
- * and suggesting future plot points, acting as a Supreme Copilot for the Dungeon Master.
- *
- * - summarizeSession - A function that handles the session summary process.
- * - SummarizeSessionInput - The input type for the summarizeSession function.
- * - SummarizeSessionOutput - The return type for the summarizeSession function.
+ * and highlighting mechanical changes (XP, gold, status).
  */
 
 import {ai} from '@/ai/genkit';
@@ -14,28 +10,33 @@ import {z} from 'genkit';
 const SummarizeSessionInputSchema = z.object({
   sessionSummary: z
     .string()
-    .describe('Um resumo conciso das sessões anteriores de D&D 5e, cobrindo eventos, NPCs e ações dos jogadores.'),
+    .describe('Um resumo das sessões anteriores, cobrindo eventos, NPCs e ações dos jogadores.'),
 });
 export type SummarizeSessionInput = z.infer<typeof SummarizeSessionInputSchema>;
 
 const SummarizeSessionOutputSchema = z.object({
   factions: z
     .array(z.string())
-    .describe('Lista das facções envolvidas e seus interesses identificados a partir do resumo da sessão.'),
+    .describe('Facções envolvidas e seus interesses.'),
   conflicts: z
     .array(z.string())
-    .describe('Lista dos conflitos ativos entre facções ou personagens identificados a partir do resumo da sessão.'),
+    .describe('Conflitos ativos identificados.'),
+  mechanicalImpact: z.object({
+    xpAwarded: z.string().optional().describe('Sugestão de XP total para a sessão.'),
+    lootAcquired: z.array(z.string()).optional().describe('Itens mágicos ou tesouros citados.'),
+    statusChanges: z.array(z.string()).optional().describe('Mudanças de status (Ex: nível de exaustão, mortes, maldições).'),
+  }).describe('Análise mecânica da sessão.'),
   futureDevelopments: z
     .array(z.string())
     .min(3)
     .max(5)
-    .describe('3 a 5 possíveis desenvolvimentos futuros e ramificações narrativas, apresentando múltiplas possibilidades.'),
+    .describe('Desenvolvimentos futuros possíveis.'),
   unexpectedComplication: z
     .string()
-    .describe('Uma complicação inesperada e emergente que pode surgir, sem forçar um roteiro.'),
+    .describe('Uma complicação emergente baseada em regras.'),
   hiddenHook: z
     .string()
-    .describe('Um gancho oculto para futuras aventuras ou revelações, sutilmente inserido no contexto.'),
+    .describe('Um gancho oculto para futuras aventuras.'),
 });
 export type SummarizeSessionOutput = z.infer<typeof SummarizeSessionOutputSchema>;
 
@@ -49,58 +50,18 @@ const summarizeSessionPrompt = ai.definePrompt({
   name: 'summarizeSessionPrompt',
   input: {schema: SummarizeSessionInputSchema},
   output: {schema: SummarizeSessionOutputSchema},
-  prompt: `Você é um Copiloto Supremo para Mestre de Dungeons & Dragons 5ª Edição (5e).
-Sua função NÃO é substituir o Mestre, mas auxiliá-lo com:
-* Ideias narrativas coerentes
-* Consequências lógicas
-* Ganchos sandbox
-* Política e intrigas
-* Descrições imersivas
-* Geração de NPCs
-* Criação de cartas, rumores e documentos
-* Sugestões em caso de sucesso ou falha
-* Expansão de mundo consistente
-* Organização de contexto
+  prompt: `Você é o Arquivista Supremo de D&D 5e.
+Sua função é resumir a sessão focando no equilíbrio entre NARRATIVA e REGRAS.
 
-Você responde **sempre em português brasileiro**.
-
----
-
-## 🧭 ESTILO DE SUPORTE
-
-O Mestre joga em estilo **sandbox político e emergente**. Portanto:
-* Nunca force um roteiro.
-* Sempre ofereça múltiplas possibilidades.
-* Trabalhe com consequências naturais.
-* Considere impacto social, econômico e político.
-* Sugira efeitos de curto, médio e longo prazo.
-
----
-
-## 📜 COMO RESPONDER
-
-O Mestre forneceu um resumo da sessão. Você deve:
-* Identificar facções envolvidas
-* Identificar conflitos ativos
-* Sugerir 3–5 possíveis desenvolvimentos futuros
-* Sugerir 1 complicação inesperada
-* Sugerir 1 gancho oculto
-
----
-
-## 🗂 MEMÓRIA CONTEXTUAL
-
-Considere sempre:
-* Eventos passados informados pelo Mestre
-* NPCs mencionados anteriormente
-* Facções
-* Promessas feitas
-* Segredos revelados
-
----
+Destaque:
+1. **Impacto Mecânico**: Quem subiu de nível? Quem ganhou exaustão? Quais itens mágicos foram encontrados?
+2. **Evolução de Facções**: Como o poder político mudou?
+3. **Sandbox**: Quais caminhos se abriram?
 
 Resumo da Sessão:
-{{{sessionSummary}}}`,
+{{{sessionSummary}}}
+
+Responda em português brasileiro.`,
 });
 
 const summarizeSessionFlow = ai.defineFlow(

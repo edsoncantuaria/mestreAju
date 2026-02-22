@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { BookOpen, Loader2, Save, Globe, Map as MapIcon, Send, Sparkles, X, ChevronLeft, Link as LinkIcon } from 'lucide-react';
+import { BookOpen, Loader2, Save, Globe, Map as MapIcon, Send, Sparkles, X, ChevronLeft, Link as LinkIcon, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -41,7 +41,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
       toast({
         variant: "destructive",
         title: "Campos Incompletos",
-        description: "Dê um título e preencha o mapa/lore para continuar.",
+        description: "Preencha o título, mapa e lore.",
       });
       return;
     }
@@ -51,11 +51,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
       setResult(data);
     } catch (error) {
       console.error(error);
-      toast({
-        variant: "destructive",
-        title: "Erro na IA",
-        description: "Não foi possível gerar os ganchos agora.",
-      });
+      toast({ variant: "destructive", title: "Erro na IA", description: "Falha na preparação mecânica." });
     } finally {
       setGlobalLoading(false);
     }
@@ -87,10 +83,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
 
     setDoc(sessionDocRef, dataToSave, { merge: true })
       .then(() => {
-        toast({
-          title: "Mundo Sincronizado!",
-          description: "Os dados foram salvos no Firebase e o Copiloto está pronto.",
-        });
+        toast({ title: "Mundo Sincronizado!", description: "Tudo pronto no Grimório." });
         onSessionLoad(dataToSave);
       })
       .catch((serverError) => {
@@ -135,12 +128,11 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                 <LinkIcon size={12} className="text-primary" /> URL do Mapa (Roll20)
               </label>
               <Input 
-                placeholder="Cole o link da imagem do mapa..."
+                placeholder="Link da imagem..."
                 value={formData.mapImageUrl}
                 onChange={(e) => setFormData({...formData, mapImageUrl: e.target.value})}
                 className="bg-background/30 border-white/5 h-10 text-[10px]"
               />
-              <p className="text-[9px] text-muted-foreground italic px-1">Isso será exibido no seu dashboard.</p>
             </div>
           </div>
 
@@ -166,23 +158,14 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
               className="flex-[2] bg-primary hover:bg-primary/80 font-headline h-12 text-lg shadow-xl shadow-primary/20"
             >
               <Sparkles className="mr-2 h-5 w-5" />
-              Gerar Estrutura Sandbox
+              Manifestar Sandbox
             </Button>
           </div>
         </div>
       ) : (
-        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500">
-          <ScrollArea className="flex-1 h-[50vh] pr-4">
+        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 flex-1 flex flex-col overflow-hidden">
+          <ScrollArea className="flex-1 pr-4">
             <div className="space-y-4">
-              {formData.mapImageUrl && (
-                <div className="rounded-2xl overflow-hidden border border-white/10 aspect-video relative group">
-                  <img src={formData.mapImageUrl} alt="Preview do Mapa" className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent flex items-end p-4">
-                    <span className="text-[10px] font-bold text-accent uppercase tracking-widest">Mapa Ativo Detectado</span>
-                  </div>
-                </div>
-              )}
-
               <div className="p-4 bg-accent/5 border border-accent/20 rounded-2xl italic text-xs text-muted-foreground">
                 <h4 className="font-bold text-accent mb-2 uppercase tracking-widest flex items-center gap-2">
                   <BookOpen size={14} /> Resumo do Mundo
@@ -190,9 +173,25 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                 {formData.worldLore}
               </div>
 
+              {result.environmentalRules && result.environmentalRules.length > 0 && (
+                <div className="space-y-2">
+                  <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center gap-2">
+                    <ShieldAlert size={12} /> Regras de Ambiente
+                  </h4>
+                  <div className="grid grid-cols-1 gap-2">
+                    {result.environmentalRules.map((er, i) => (
+                      <div key={i} className="p-3 bg-black/20 border border-white/5 rounded-xl flex justify-between items-center group">
+                        <span className="text-[10px] font-bold text-foreground">{er.feature}</span>
+                        <span className="text-[9px] font-bold text-accent group-hover:text-white transition-colors">[{er.rule}]</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <Card className="border-white/5 bg-black/40 rounded-2xl overflow-hidden">
                 <CardHeader className="py-3 px-4 border-b border-white/5 bg-white/[0.02]">
-                  <CardTitle className="text-[10px] font-headline uppercase tracking-widest text-accent">Ganchos Sugeridos pela IA</CardTitle>
+                  <CardTitle className="text-[10px] font-headline uppercase tracking-widest text-accent">Ganchos de Aventura</CardTitle>
                 </CardHeader>
                 <CardContent className="p-4">
                   <ul className="space-y-3">
@@ -205,30 +204,19 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                   </ul>
                 </CardContent>
               </Card>
-
-              <div className="grid grid-cols-1 gap-4">
-                <div className="p-4 bg-destructive/10 border border-destructive/20 rounded-2xl">
-                  <h5 className="text-[9px] font-bold text-destructive uppercase mb-2 tracking-widest">Conflito Ativo</h5>
-                  <p className="text-[10px] text-muted-foreground italic">{result.activeConflicts[0]}</p>
-                </div>
-                <div className="p-4 bg-primary/10 border border-primary/20 rounded-2xl">
-                  <h5 className="text-[9px] font-bold text-accent uppercase mb-2 tracking-widest">Tensões Políticas</h5>
-                  <p className="text-[10px] text-muted-foreground italic">{result.politicalIntrigueSummary}</p>
-                </div>
-              </div>
             </div>
           </ScrollArea>
 
-          <div className="flex gap-2 pt-4 border-t border-white/5">
+          <div className="flex gap-2 pt-4 border-t border-white/5 mt-auto">
             <Button variant="outline" className="flex-1 h-14 rounded-xl" onClick={() => setResult(null)}>
-              <ChevronLeft size={16} className="mr-2" /> Ajustar Preparação
+              <ChevronLeft size={16} className="mr-2" /> Ajustar
             </Button>
             <Button 
               onClick={handleFinishAndSave}
               className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 font-headline h-14 rounded-xl text-lg shadow-2xl shadow-accent/20 gap-3"
             >
               <Save size={24} />
-              SALVAR NO CLOUD & CARREGAR
+              CARREGAR GRIMÓRIO
             </Button>
           </div>
         </div>

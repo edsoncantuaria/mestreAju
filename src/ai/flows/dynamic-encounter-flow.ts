@@ -1,9 +1,10 @@
 'use server';
 /**
  * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais e orçamento de XP real.
+ * Garante que a narrativa reflita os bônus e penalidades mecânicas.
  */
 
-import {ai, fetchDndRuleTool} from '@/ai/genkit';
+import {ai, fetchDndRuleTool, fetchMonsterStatblockTool} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const PartyMemberSchema = z.object({
@@ -33,18 +34,18 @@ export type DynamicEncounterInput = z.infer<typeof DynamicEncounterInputSchema>;
 
 const OptionSchema = z.object({
   label: z.string().describe('Título curto da opção.'),
-  description: z.string().describe('O que acontece nesta opção.'),
+  description: z.string().describe('O que acontece nesta opção, mencionando CDs de testes se necessário.'),
   difficulty: z.enum(['Muito Fácil', 'Fácil', 'Médio', 'Difícil', 'Mortal']).describe('Dificuldade baseada no orçamento de XP do grupo.'),
   xpValue: z.number().optional().describe('Valor total de XP planejado para o encontro.'),
-  roll20Macro: z.string().optional().describe('Um comando de chat/macro para o Roll20 (ex: /roll 1d20+5 ou comandos de ataque).'),
+  roll20Macro: z.string().optional().describe('Um comando de chat/macro para o Roll20.'),
 });
 
 const DynamicEncounterOutputSchema = z.object({
-  narrativa: z.string().describe('Texto descrevendo o desenrolar da cena atual.'),
+  narrativa: z.string().describe('Texto descrevendo o desenrolar da cena atual com termos mecânicos integrados.'),
   opcoes: z.array(OptionSchema).min(2).max(4).describe('Próximos passos possíveis.'),
   detalheOculto: z.string().optional().describe('Um segredo, item ou nome de NPC/Local encontrado.'),
-  tipoDescoberta: z.enum(['npc', 'location', 'item', 'secret']).optional().describe('Classificação da descoberta para integração com outras ferramentas.'),
-  sugestaoMecanica: z.string().optional().describe('Sugestão de CD ou monstros específicos com base no XP total permitido.'),
+  tipoDescoberta: z.enum(['npc', 'location', 'item', 'secret']).optional().describe('Classificação da descoberta.'),
+  sugestaoMecanica: z.string().optional().describe('Sugestão de CD ou monstros específicos do SRD para o encontro.'),
 });
 export type DynamicEncounterOutput = z.infer<typeof DynamicEncounterOutputSchema>;
 
@@ -54,35 +55,27 @@ export async function generateEncounterStep(input: DynamicEncounterInput): Promi
 
 const prompt = ai.definePrompt({
   name: 'dynamicEncounterPrompt',
-  tools: [fetchDndRuleTool],
+  tools: [fetchDndRuleTool, fetchMonsterStatblockTool],
   input: {schema: DynamicEncounterInputSchema},
   output: {schema: DynamicEncounterOutputSchema},
   prompt: `Você é o Copiloto de Sessão Ativa para D&D 5e.
-Você deve planejar o próximo passo da aventura Sandbox de forma emergente e política.
+Sua tarefa é planejar o próximo passo da aventura Sandbox de forma emergente, política e RIGOROSAMENTE fiel às regras.
 
-ORÇAMENTO DE XP DO GRUPO (Thresholds por Encontro):
+ORÇAMENTO DE XP (Thresholds por Encontro do DMG):
 - Fácil: {{{partyInfo.xpThresholds.easy}}} XP
 - Médio: {{{partyInfo.xpThresholds.medium}}} XP
 - Difícil: {{{partyInfo.xpThresholds.hard}}} XP
 - Mortal: {{{partyInfo.xpThresholds.deadly}}} XP
 
-COMPONENTES DO GRUPO:
-{{#each partyInfo.members}}
-- {{#if name}}{{name}}: {{/if}}Nível {{level}} {{race}} {{class}}
-{{/each}}
-
 SITUAÇÃO ATUAL: {{{currentSituation}}}
-{{#if lastChoice}}ESCOLHA ANTERIOR: {{{lastChoice}}}{{/if}}
-{{#if customInput}}O MESTRE DECIDIU: {{{customInput}}}{{/if}}
 
-INSTRUÇÕES DE MESTRE:
-1. Respeite rigorosamente os limites de XP informados acima ao sugerir encontros.
-2. Gere opções que envolvam tanto combate quanto interações sociais ou exploração.
-3. Se um novo NPC ou Local importante surgir, preencha o campo "detalheOculto" com o Nome e o campo "tipoDescoberta" apropriadamente.
-4. Para cada opção, forneça um "roll20Macro" rico em detalhes se houver rolagem envolvida.
-5. Em "sugestaoMecanica", sugira monstros reais do SRD que somem o XP próximo ao selecionado.
+INSTRUÇÕES:
+1. **Narrativa Mecânica**: Use frases como "Você percebe que o terreno é difícil (difficult terrain)" ou "O inimigo parece ter vantagem (advantage)".
+2. **Equilíbrio de XP**: Nunca sugira um combate que ultrapasse o XP 'Mortal' sem avisar explicitamente.
+3. **Monstros SRD**: Sugira monstros reais que existam no SRD 5e.
+4. **Macros Roll20**: Gere macros ricas que usem o template '&{template:npc}' se for um monstro ou '&{template:simple}' para testes.
 
-Sua resposta deve ser em Português Brasileiro.`,
+Responda em Português Brasileiro.`,
 });
 
 const dynamicEncounterFlow = ai.defineFlow(
