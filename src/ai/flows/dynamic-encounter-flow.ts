@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais e macros para Roll20.
+ * @fileOverview Fluxo para geração de eventos e encontros dinâmicos ramificados com suporte a regras oficiais e orçamento de XP real.
  */
 
 import {ai, fetchDndRuleTool} from '@/ai/genkit';
@@ -15,6 +15,12 @@ const PartyMemberSchema = z.object({
 
 const PartyInfoSchema = z.object({
   members: z.array(PartyMemberSchema).min(1).describe('A lista de personagens jogadores e seus níveis/raças.'),
+  xpThresholds: z.object({
+    easy: z.number(),
+    medium: z.number(),
+    hard: z.number(),
+    deadly: z.number(),
+  }).optional().describe('Limites de XP para o grupo calculados via DMG.'),
 });
 
 const DynamicEncounterInputSchema = z.object({
@@ -36,7 +42,8 @@ const OptionSchema = z.object({
 const DynamicEncounterOutputSchema = z.object({
   narrativa: z.string().describe('Texto descrevendo o desenrolar da cena atual.'),
   opcoes: z.array(OptionSchema).min(2).max(4).describe('Próximos passos possíveis.'),
-  detalheOculto: z.string().optional().describe('Um segredo, item ou gancho encontrado.'),
+  detalheOculto: z.string().optional().describe('Um segredo, item ou nome de NPC/Local encontrado.'),
+  tipoDescoberta: z.enum(['npc', 'location', 'item', 'secret']).optional().describe('Classificação da descoberta para integração com outras ferramentas.'),
   sugestaoMecanica: z.string().optional().describe('Sugestão de CD ou monstros específicos com base no XP total permitido.'),
 });
 export type DynamicEncounterOutput = z.infer<typeof DynamicEncounterOutputSchema>;
@@ -51,7 +58,13 @@ const prompt = ai.definePrompt({
   input: {schema: DynamicEncounterInputSchema},
   output: {schema: DynamicEncounterOutputSchema},
   prompt: `Você é o Copiloto de Sessão Ativa para D&D 5e.
-Você deve calcular a dificuldade dos encontros usando o Orçamento de XP oficial do DMG 5e.
+Você deve planejar o próximo passo da aventura Sandbox de forma emergente e política.
+
+ORÇAMENTO DE XP DO GRUPO (Thresholds por Encontro):
+- Fácil: {{{partyInfo.xpThresholds.easy}}} XP
+- Médio: {{{partyInfo.xpThresholds.medium}}} XP
+- Difícil: {{{partyInfo.xpThresholds.hard}}} XP
+- Mortal: {{{partyInfo.xpThresholds.deadly}}} XP
 
 COMPONENTES DO GRUPO:
 {{#each partyInfo.members}}
@@ -62,10 +75,12 @@ SITUAÇÃO ATUAL: {{{currentSituation}}}
 {{#if lastChoice}}ESCOLHA ANTERIOR: {{{lastChoice}}}{{/if}}
 {{#if customInput}}O MESTRE DECIDIU: {{{customInput}}}{{/if}}
 
-INSTRUÇÕES:
-1. Calcule o limite de XP (Easy/Medium/Hard/Deadly) total e sugira monstros reais do SRD 5e.
-2. Para cada opção, se houver combate ou teste, forneça um "roll20Macro" (ex: /roll 1d20+4 para iniciativa ou /roll 2d6+3 para dano de um monstro).
-3. Gere o próximo passo da narrativa de forma fluida e sandbox.
+INSTRUÇÕES DE MESTRE:
+1. Respeite rigorosamente os limites de XP informados acima ao sugerir encontros.
+2. Gere opções que envolvam tanto combate quanto interações sociais ou exploração.
+3. Se um novo NPC ou Local importante surgir, preencha o campo "detalheOculto" com o Nome e o campo "tipoDescoberta" apropriadamente.
+4. Para cada opção, forneça um "roll20Macro" rico em detalhes se houver rolagem envolvida.
+5. Em "sugestaoMecanica", sugira monstros reais do SRD que somem o XP próximo ao selecionado.
 
 Sua resposta deve ser em Português Brasileiro.`,
 });

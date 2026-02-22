@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Map as MapIcon, Terminal, Check, X, Download, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,6 +26,7 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
   const { toast } = useToast();
   const [copiedMacro, setCopiedMacro] = useState<string | null>(null);
   const [copiedImport, setCopiedImport] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('npcs');
 
   const npcsQuery = useMemoFirebase(() => {
     if (!db || !user || !activeSession) return null;
@@ -46,16 +47,42 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
   const { data: factions } = useCollection(factionsQuery);
   const { data: locations } = useCollection(locationsQuery);
 
-  const handleGenerateNpc = async () => {
+  useEffect(() => {
+    if (activeSession?.activeContext?.targetTool === 'entities') {
+      const { type, name, context } = activeSession.activeContext.data;
+      
+      // Auto-trigger generation based on context
+      if (type === 'npc') {
+        setActiveTab('npcs');
+        handleGenerateNpc(name, context);
+      } else if (type === 'location') {
+        setActiveTab('locations');
+        handleGenerateLocation(name, context);
+      }
+
+      // Clear context
+      if (db && user && activeSession.id) {
+        updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`), {
+          'activeContext': null
+        });
+      }
+    }
+  }, [activeSession?.activeContext]);
+
+  const handleGenerateNpc = async (nameOverride?: string, contextOverride?: string) => {
     if (!activeSession) return;
     setGlobalLoading(true);
     try {
-      const result = await generateNpc({ context: activeSession.worldLore });
+      const result = await generateNpc({ 
+        context: contextOverride || activeSession.worldLore,
+        role: nameOverride ? `Named as: ${nameOverride}` : undefined
+      });
       const npcId = `npc-${Date.now()}`;
       const npcRef = doc(db!, `users/${user!.uid}/campaigns/default-campaign/npcs/${npcId}`);
       
       const npcData = {
         ...result,
+        name: nameOverride || result.name,
         id: npcId,
         campaignId: 'default-campaign',
         ownerId: user!.uid,
@@ -66,7 +93,7 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
       };
 
       await setDoc(npcRef, npcData);
-      toast({ title: "NPC Manifestado!", description: `${result.name} foi adicionado ao seu mundo.` });
+      toast({ title: "NPC Manifestado!", description: `${npcData.name} foi adicionado ao seu mundo.` });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Erro na IA", description: "Não foi possível manifestar o NPC." });
@@ -75,16 +102,20 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
     }
   };
 
-  const handleGenerateLocation = async () => {
+  const handleGenerateLocation = async (nameOverride?: string, contextOverride?: string) => {
     if (!activeSession) return;
     setGlobalLoading(true);
     try {
-      const result = await generateLocation({ context: activeSession.worldLore });
+      const result = await generateLocation({ 
+        context: contextOverride || activeSession.worldLore,
+        type: nameOverride ? `Called: ${nameOverride}` : undefined
+      });
       const locationId = `loc-${Date.now()}`;
       const locRef = doc(db!, `users/${user!.uid}/campaigns/default-campaign/locations/${locationId}`);
       
       const locData = {
         ...result,
+        name: nameOverride || result.name,
         id: locationId,
         campaignId: 'default-campaign',
         ownerId: user!.uid,
@@ -94,7 +125,7 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
       };
 
       await setDoc(locRef, locData);
-      toast({ title: "Local Mapeado!", description: `${result.name} agora existe no mundo.` });
+      toast({ title: "Local Mapeado!", description: `${locData.name} agora existe no mundo.` });
     } catch (e) {
       console.error(e);
       toast({ variant: "destructive", title: "Erro na IA", description: "Não foi possível mapear o local." });
@@ -154,7 +185,7 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
 
   return (
     <div className="h-full flex flex-col space-y-4">
-      <Tabs defaultValue="npcs" className="flex-1 flex flex-col">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col">
         <TabsList className="bg-black/40 border border-white/5 w-full grid grid-cols-3">
           <TabsTrigger value="npcs" className="gap-1 text-[9px] uppercase font-bold tracking-widest"><UserCircle size={12} /> NPCs</TabsTrigger>
           <TabsTrigger value="factions" className="gap-1 text-[9px] uppercase font-bold tracking-widest"><Shield size={12} /> Facções</TabsTrigger>
@@ -162,8 +193,8 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
         </TabsList>
 
         <TabsContent value="npcs" className="flex-1 flex flex-col mt-4 space-y-3 overflow-hidden">
-          <Button onClick={handleGenerateNpc} className="w-full bg-primary/20 border-primary/40 text-accent h-9">
-            <Sparkles size={14} className="mr-2" /> Gerar NPC
+          <Button onClick={() => handleGenerateNpc()} className="w-full bg-primary/20 border-primary/40 text-accent h-9">
+            <Sparkles size={14} className="mr-2" /> Gerar NPC Aleatório
           </Button>
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-3">
@@ -193,6 +224,11 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
                   </div>
                 </Card>
               ))}
+              {(!npcs || npcs.length === 0) && (
+                <div className="py-12 text-center text-muted-foreground italic text-xs border border-dashed border-white/5 rounded-xl">
+                  Nenhum NPC manifestado. Use a Sessão Ativa para descobrir novos personagens!
+                </div>
+              )}
             </div>
           </ScrollArea>
         </TabsContent>
@@ -215,13 +251,18 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
                   <p className="text-[10px] text-muted-foreground mt-2 line-clamp-2 italic">"{faction.description}"</p>
                 </Card>
               ))}
+              {(!factions || factions.length === 0) && (
+                <div className="py-12 text-center text-muted-foreground italic text-xs border border-dashed border-white/5 rounded-xl">
+                  Crie facções para dar peso político ao seu mundo.
+                </div>
+              )}
             </div>
           </ScrollArea>
         </TabsContent>
 
         <TabsContent value="locations" className="flex-1 flex flex-col mt-4 space-y-3 overflow-hidden">
-          <Button onClick={handleGenerateLocation} className="w-full bg-green-500/10 border-green-500/30 text-green-400 h-9">
-            <MapIcon size={14} className="mr-2" /> Gerar Local
+          <Button onClick={() => handleGenerateLocation()} className="w-full bg-green-500/10 border-green-500/30 text-green-400 h-9">
+            <MapIcon size={14} className="mr-2" /> Gerar Local Aleatório
           </Button>
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-3">
@@ -244,6 +285,11 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
                   </div>
                 </Card>
               ))}
+              {(!locations || locations.length === 0) && (
+                <div className="py-12 text-center text-muted-foreground italic text-xs border border-dashed border-white/5 rounded-xl">
+                  Mapeie tavernas, ruínas e cidades para expandir o mapa.
+                </div>
+              )}
             </div>
           </ScrollArea>
         </TabsContent>

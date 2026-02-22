@@ -17,7 +17,9 @@ import {
   GitBranch, 
   ChevronDown, 
   Sparkles,
-  History
+  History,
+  Users,
+  MapPin
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -36,6 +38,30 @@ interface LiveSessionToolProps {
   setGlobalLoading: (loading: boolean) => void;
 }
 
+// XP Thresholds Table (DMG p. 82)
+const XP_THRESHOLDS: Record<number, number[]> = {
+  1: [25, 50, 75, 100],
+  2: [50, 100, 150, 200],
+  3: [75, 150, 225, 400],
+  4: [125, 250, 375, 500],
+  5: [250, 500, 750, 1100],
+  6: [300, 600, 900, 1400],
+  7: [350, 750, 1100, 1700],
+  8: [450, 900, 1400, 2100],
+  9: [550, 1100, 1600, 2400],
+  10: [600, 1200, 1900, 2800],
+  11: [800, 1600, 2400, 3600],
+  12: [1000, 2000, 3000, 4500],
+  13: [1100, 2200, 3400, 5100],
+  14: [1250, 2500, 3800, 5700],
+  15: [1400, 2800, 4300, 6400],
+  16: [1600, 3200, 4800, 7200],
+  17: [2000, 4000, 6000, 9000],
+  18: [2100, 4200, 6300, 9500],
+  19: [2400, 4800, 7200, 10900],
+  20: [2800, 5600, 8400, 12700],
+};
+
 export function LiveSessionTool({ partyInfo, activeSession, onContextAction, setGlobalLoading }: LiveSessionToolProps) {
   const [currentSituation, setCurrentSituation] = useState('');
   const [customInput, setCustomInput] = useState('');
@@ -47,6 +73,19 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
   const { user } = useUser();
 
   const history: DynamicEncounterOutput[] = activeSession?.narrativeLog || [];
+
+  const calculateXPThresholds = () => {
+    let easy = 0, medium = 0, hard = 0, deadly = 0;
+    partyInfo.members.forEach(m => {
+      const level = Math.min(Math.max(m.level, 1), 20);
+      const [e, med, h, d] = XP_THRESHOLDS[level];
+      easy += e;
+      medium += med;
+      hard += h;
+      deadly += d;
+    });
+    return { easy, medium, hard, deadly };
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -72,7 +111,10 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
     try {
       const step = await generateEncounterStep({
         currentSituation: `${currentSituation} | Lore do Mundo: ${activeSession?.worldLore || ''}`,
-        partyInfo,
+        partyInfo: {
+          members: partyInfo.members,
+          xpThresholds: calculateXPThresholds()
+        },
       });
       await updateNarrativeLog(step);
     } catch (e) {
@@ -90,7 +132,10 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
       const step = await generateEncounterStep({
         currentSituation: `${contextText} | Lore Ativa: ${activeSession?.worldLore || ''}`,
         lastChoice: optionLabel,
-        partyInfo,
+        partyInfo: {
+          members: partyInfo.members,
+          xpThresholds: calculateXPThresholds()
+        },
         customInput: customInput.trim() || undefined,
       });
       await updateNarrativeLog(step);
@@ -253,6 +298,25 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent><p className="text-[10px]">Analisar Contexto</p></TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button 
+                                    size="icon" 
+                                    variant="ghost" 
+                                    className="h-6 w-6 text-sky-400 hover:bg-sky-400/20"
+                                    onClick={() => onContextAction('entities', { 
+                                      type: step.tipoDescoberta === 'location' ? 'location' : 'npc',
+                                      name: step.detalheOculto,
+                                      context: step.narrativa
+                                    })}
+                                  >
+                                    {step.tipoDescoberta === 'location' ? <MapPin size={12} /> : <Users size={12} />}
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-[10px]">Manifestar {step.tipoDescoberta === 'location' ? 'Local' : 'NPC'} no Grimório</p>
+                                </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
                           </div>
