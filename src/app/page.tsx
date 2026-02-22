@@ -180,14 +180,24 @@ function ScreenDungeonMasterContent() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
-  const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [globalLoading, setGlobalLoading] = useState(false);
 
+  // Queries e Docs
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user) return null;
     return doc(db, 'users', user.uid);
   }, [db, user]);
   const { data: userProfile, isLoading: loadingProfile } = useDoc(userDocRef);
+
+  const sessionsQuery = useMemoFirebase(() => {
+    if (!db || !user) return null;
+    return query(
+      collection(db, `users/${user.uid}/campaigns/default-campaign/sessions`),
+      orderBy('dateLastModified', 'desc')
+    );
+  }, [db, user]);
+  const { data: sessions, isLoading: loadingSessions } = useCollection(sessionsQuery);
 
   const activeSessionDocRef = useMemoFirebase(() => {
     if (!db || !user || !activeSessionId) return null;
@@ -195,6 +205,7 @@ function ScreenDungeonMasterContent() {
   }, [db, user, activeSessionId]);
   const { data: activeSession, isLoading: loadingActiveSession } = useDoc(activeSessionDocRef);
 
+  // Efeito 1: Sincronizar estado da ferramenta a partir da sessão carregada
   useEffect(() => {
     if (activeSession) {
       if (activeSession.uiState?.activeTools) {
@@ -206,6 +217,36 @@ function ScreenDungeonMasterContent() {
     }
   }, [activeSession?.id]);
 
+  // Efeito 2: Tentar restaurar a última sessão silenciosamente
+  useEffect(() => {
+    if (!isInitializing) return; // Só roda uma vez na montagem/login
+
+    if (user && !loadingSessions && !loadingProfile) {
+      const savedSessionId = userProfile?.lastActiveSessionId || localStorage.getItem('mestreaju_active_session_id');
+      
+      if (savedSessionId && sessions) {
+        const found = sessions.find((s: any) => s.id === savedSessionId);
+        if (found) {
+          setActiveSessionId(found.id);
+          setIsInitializing(false);
+          return;
+        }
+      }
+
+      // Se não encontrou nenhuma sessão salva ou o ID não existe mais
+      setIsInitializing(false);
+      
+      // Se não há nenhuma sessão no banco, abre o formulário de criação
+      if (!sessions || sessions.length === 0) {
+        setIsModalOpen(true);
+        setShowNewSessionForm(true);
+      } else if (!activeSessionId) {
+        // Se há sessões mas nenhuma ativa, abre o modal de escolha
+        setIsModalOpen(true);
+      }
+    }
+  }, [user, loadingSessions, loadingProfile, sessions, userProfile, isInitializing, activeSessionId]);
+
   const updateActiveTools = async (tools: ToolId[]) => {
     setActiveTools(tools);
     if (db && user && activeSessionId) {
@@ -214,30 +255,98 @@ function ScreenDungeonMasterContent() {
     }
   };
 
-  const sessionsQuery = useMemoFirebase(() => {
-    if (!db || !user) return null;
-    return query(
-      collection(db, `users/${user.uid}/campaigns/default-campaign/sessions`),
-      orderBy('dateLastModified', 'desc')
-    );
-  }, [db, user]);
-
-  const { data: sessions, isLoading: loadingSessions } = useCollection(sessionsQuery);
-
-  useEffect(() => {
-    if (!loadingSessions && !loadingProfile && sessions && sessions.length > 0 && !activeSessionId) {
-      const savedSessionId = userProfile?.lastActiveSessionId || localStorage.getItem('mestreaju_active_session_id');
-      if (savedSessionId) {
-        const found = sessions.find((s: any) => s.id === savedSessionId);
-        if (found) {
-          setActiveSessionId(found.id);
-        }
-      }
-      setIsRestoringSession(false);
-    } else if (!loadingSessions && !loadingProfile) {
-      setIsRestoringSession(false);
+  const handleSelectSession = (session: any) => {
+    setActiveSessionId(session.id);
+    localStorage.setItem('mestreaju_active_session_id', session.id);
+    
+    if (db && user) {
+      setDoc(doc(db, 'users', user.uid), { 
+        lastActiveSessionId: session.id,
+        id: user.uid
+      }, { merge: true });
     }
-  }, [loadingSessions, loadingProfile, sessions, activeSessionId, userProfile]);
+    
+    setIsModalOpen(false);
+    setShowNewSessionForm(false);
+    toast({ title: "Mundo Carregado", description: `A crônica "${session.title}" está ativa.` });
+  };
+
+  const handleContextAction = async (targetToolId: ToolId, data: any) => {
+    if (!db || !user || !activeSessionId) return;
+
+    if (!activeTools.includes(targetToolId)) {
+      updateActiveTools([...activeTools, targetToolId]);
+    }
+
+    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
+    await updateDoc(sessionRef, {
+      activeContext: {
+        targetTool: targetToolId,
+        data: data,
+        timestamp: new Date().toISOString()
+      },
+      dateLastModified: new Date().toISOString()
+    });
+
+    toast({ title: "Fluxo Integrado", description: `Enviando contexto para ${targetToolId}...` });
+  };
+
+  const handleSignOut = () => {
+    signOut(auth);
+    setActiveSessionId(null);
+    localStorage.removeItem('mestreaju_active_session_id');
+    setIsInitializing(true); // Reseta para o próximo login
+    toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
+  };
+
+  const persistParty = async (newParty: PartyMember[]) => {
+    if (db && user && activeSessionId) {
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
+      updateDoc(sessionRef, { partyMembers: newParty });
+    }
+  };
+
+  const addPartyMember = () => {
+    const newMember: PartyMember = {
+      id: Date.now().toString(),
+      name: `Herói ${partyMembers.length + 1}`,
+      level: 1,
+      race: 'Humano',
+      class: 'Guerreiro'
+    };
+    const newParty = [...partyMembers, newMember];
+    setPartyMembers(newParty);
+    persistParty(newParty);
+  };
+
+  const updateMember = (id: string, updates: Partial<PartyMember>) => {
+    const newParty = partyMembers.map(m => m.id === id ? { ...m, ...updates } : m);
+    setPartyMembers(newParty);
+    persistParty(newParty);
+  };
+
+  const removeMember = (id: string) => {
+    if (partyMembers.length > 1) {
+      const newParty = partyMembers.filter(m => m.id !== id);
+      setPartyMembers(newParty);
+      persistParty(newParty);
+    }
+  };
+
+  if (isUserLoading || (user && isInitializing)) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+        <p className="font-headline text-accent animate-pulse tracking-widest uppercase text-xs">Consultando o Grimório Cloud...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthScreen />;
+  }
+
+  const avgLevel = partyMembers.length > 0 ? Math.round(partyMembers.reduce((acc, m) => acc + m.level, 0) / partyMembers.length) : 1;
 
   const tools = [
     { 
@@ -304,109 +413,6 @@ function ScreenDungeonMasterContent() {
       : [...activeTools, id];
     updateActiveTools(newTools);
   };
-
-  const handleSelectSession = (session: any) => {
-    setActiveSessionId(session.id);
-    localStorage.setItem('mestreaju_active_session_id', session.id);
-    
-    if (db && user) {
-      setDoc(doc(db, 'users', user.uid), { 
-        lastActiveSessionId: session.id,
-        id: user.uid
-      }, { merge: true });
-    }
-    
-    setIsModalOpen(false);
-    setShowNewSessionForm(false);
-    toast({ title: "Mundo Carregado", description: `A crônica "${session.title}" está ativa.` });
-  };
-
-  const handleContextAction = async (targetToolId: ToolId, data: any) => {
-    if (!db || !user || !activeSessionId) return;
-
-    if (!activeTools.includes(targetToolId)) {
-      updateActiveTools([...activeTools, targetToolId]);
-    }
-
-    const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
-    await updateDoc(sessionRef, {
-      activeContext: {
-        targetTool: targetToolId,
-        data: data,
-        timestamp: new Date().toISOString()
-      },
-      dateLastModified: new Date().toISOString()
-    });
-
-    toast({ title: "Fluxo Integrado", description: `Enviando contexto para ${targetToolId}...` });
-  };
-
-  const handleSignOut = () => {
-    signOut(auth);
-    setActiveSessionId(null);
-    localStorage.removeItem('mestreaju_active_session_id');
-    toast({ title: "Sessão Encerrada", description: "Até a próxima aventura!" });
-  };
-
-  const persistParty = async (newParty: PartyMember[]) => {
-    if (db && user && activeSessionId) {
-      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
-      updateDoc(sessionRef, { partyMembers: newParty });
-    }
-  };
-
-  const addPartyMember = () => {
-    const newMember: PartyMember = {
-      id: Date.now().toString(),
-      name: `Herói ${partyMembers.length + 1}`,
-      level: 1,
-      race: 'Humano',
-      class: 'Guerreiro'
-    };
-    const newParty = [...partyMembers, newMember];
-    setPartyMembers(newParty);
-    persistParty(newParty);
-  };
-
-  const updateMember = (id: string, updates: Partial<PartyMember>) => {
-    const newParty = partyMembers.map(m => m.id === id ? { ...m, ...updates } : m);
-    setPartyMembers(newParty);
-    persistParty(newParty);
-  };
-
-  const removeMember = (id: string) => {
-    if (partyMembers.length > 1) {
-      const newParty = partyMembers.filter(m => m.id !== id);
-      setPartyMembers(newParty);
-      persistParty(newParty);
-    }
-  };
-
-  useEffect(() => {
-    if (user && !activeSessionId && !loadingSessions && !loadingProfile && !isRestoringSession) {
-      if (!sessions || sessions.length === 0) {
-        setIsModalOpen(true);
-        setShowNewSessionForm(true);
-      } else {
-        setIsModalOpen(true);
-      }
-    }
-  }, [user, activeSessionId, loadingSessions, loadingProfile, sessions, isRestoringSession]);
-
-  if (isUserLoading || (user && isRestoringSession)) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background text-foreground">
-        <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
-        <p className="font-headline text-accent animate-pulse tracking-widest uppercase text-xs">Despertando o Grimório Cloud...</p>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return <AuthScreen />;
-  }
-
-  const avgLevel = partyMembers.length > 0 ? Math.round(partyMembers.reduce((acc, m) => acc + m.level, 0) / partyMembers.length) : 1;
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/30">
@@ -573,11 +579,11 @@ function ScreenDungeonMasterContent() {
                <BookOpen size={40} />
              </div>
              <div className="space-y-2">
-               <h2 className="text-3xl font-headline text-accent">O Grimório está Vazio</h2>
-               <p className="text-muted-foreground italic">Prepare uma nova sessão ou carregue uma crônica existente para despertar o Copiloto.</p>
+               <h2 className="text-3xl font-headline text-accent">O Grimório está em Standby</h2>
+               <p className="text-muted-foreground italic">Selecione uma crônica existente ou prepare uma nova aventura para despertar o Copiloto.</p>
              </div>
              <Button size="lg" onClick={() => setIsModalOpen(true)} className="bg-primary font-headline px-8 shadow-xl shadow-primary/20">
-               Despertar Copiloto
+               Acessar Grimório
              </Button>
           </div>
         ) : (
