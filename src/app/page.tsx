@@ -181,6 +181,7 @@ function ScreenDungeonMasterContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewSessionForm, setShowNewSessionForm] = useState(false);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [globalLoading, setGlobalLoading] = useState(false);
 
   const userDocRef = useMemoFirebase(() => {
     if (!db || !user) return null;
@@ -244,56 +245,56 @@ function ScreenDungeonMasterContent() {
       label: 'Sessão Ativa', 
       icon: Activity, 
       color: 'text-rose-500',
-      component: (props: any) => <LiveSessionTool {...props} />
+      component: (props: any) => <LiveSessionTool {...props} setGlobalLoading={setGlobalLoading} />
     },
     { 
       id: 'entities', 
       label: 'Grimório', 
       icon: Users, 
       color: 'text-sky-400',
-      component: (props: any) => <NpcFactionManagerTool {...props} />
+      component: (props: any) => <NpcFactionManagerTool {...props} setGlobalLoading={setGlobalLoading} />
     },
     { 
       id: 'rules', 
       label: 'Enciclopédia', 
       icon: Book, 
       color: 'text-cyan-400',
-      component: (props: any) => <RulesLookupTool {...props} />
+      component: (props: any) => <RulesLookupTool {...props} setGlobalLoading={setGlobalLoading} />
     },
     { 
       id: 'summary', 
       label: 'Resumo', 
       icon: Scroll, 
       color: 'text-blue-400',
-      component: (props: any) => <SessionSummaryTool {...props} />
+      component: (props: any) => <SessionSummaryTool {...props} setGlobalLoading={setGlobalLoading} />
     },
     { 
       id: 'analysis', 
       label: 'Análise', 
       icon: Search, 
       color: 'text-amber-400',
-      component: (props: any) => <ContextAnalysisTool {...props} />
+      component: (props: any) => <ContextAnalysisTool {...props} setGlobalLoading={setGlobalLoading} />
     },
     { 
       id: 'narrative', 
       label: 'Escrita', 
       icon: PenTool, 
       color: 'text-purple-400',
-      component: (props: any) => <NarrativeGeneratorTool {...props} />
+      component: (props: any) => <NarrativeGeneratorTool {...props} setGlobalLoading={setGlobalLoading} />
     },
     { 
       id: 'sandbox', 
       label: 'Sandbox', 
       icon: Map, 
       color: 'text-green-400',
-      component: (props: any) => <SandboxIdeasTool {...props} />
+      component: (props: any) => <SandboxIdeasTool {...props} setGlobalLoading={setGlobalLoading} />
     },
     { 
       id: 'consequences', 
       label: 'Efeitos', 
       icon: Zap, 
       color: 'text-red-400',
-      component: (props: any) => <ConsequencesTool {...props} />
+      component: (props: any) => <ConsequencesTool {...props} setGlobalLoading={setGlobalLoading} />
     },
   ] as const;
 
@@ -409,6 +410,16 @@ function ScreenDungeonMasterContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground selection:bg-primary/30">
+      {globalLoading && (
+        <div className="fixed inset-0 z-[1000] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center animate-in fade-in duration-300">
+          <div className="w-20 h-20 rounded-3xl bg-primary flex items-center justify-center shadow-2xl shadow-primary/30 mb-6 animate-bounce">
+            <Sparkles size={40} className="text-white" />
+          </div>
+          <p className="font-headline text-2xl text-accent animate-pulse tracking-widest uppercase">Canalizando Magia...</p>
+          <p className="text-xs text-muted-foreground mt-2 uppercase tracking-[0.2em] font-bold">O Grimório está processando sua vontade</p>
+        </div>
+      )}
+
       <header className="h-16 border-b border-white/5 bg-card/80 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-[100] shadow-xl">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
@@ -636,6 +647,7 @@ function ScreenDungeonMasterContent() {
                   activeSession={null} 
                   onSessionLoad={handleSelectSession} 
                   onCancel={() => setShowNewSessionForm(false)}
+                  setGlobalLoading={setGlobalLoading}
                 />
               </div>
             ) : (

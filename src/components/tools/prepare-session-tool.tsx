@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -19,9 +18,10 @@ interface PrepareSessionToolProps {
   onSessionLoad: (data: any) => void;
   activeSession: any | null;
   onCancel?: () => void;
+  setGlobalLoading: (loading: boolean) => void;
 }
 
-export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: PrepareSessionToolProps) {
+export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, setGlobalLoading }: PrepareSessionToolProps) {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
@@ -34,8 +34,6 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
     currentAgendas: activeSession?.currentAgendas || ''
   });
   
-  const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<PrepareSessionOutput | null>(null);
 
   const handlePrepare = async () => {
@@ -47,7 +45,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
       });
       return;
     }
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const data = await prepareSession(formData);
       setResult(data);
@@ -59,13 +57,13 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
         description: "Não foi possível gerar os ganchos agora.",
       });
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
   const handleFinishAndSave = async () => {
     if (!user || !db || !result) return;
-    setSaving(true);
+    setGlobalLoading(true);
     
     const sessionId = formData.title.toLowerCase().replace(/\s+/g, '-') || `session-${Date.now()}`;
     const sessionPath = `users/${user.uid}/campaigns/default-campaign/sessions/${sessionId}`;
@@ -103,7 +101,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
         });
         errorEmitter.emit('permission-error', permissionError);
       })
-      .finally(() => setSaving(false));
+      .finally(() => setGlobalLoading(false));
   };
 
   return (
@@ -164,10 +162,10 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
             </Button>
             <Button 
               onClick={handlePrepare} 
-              disabled={loading || !formData.title || !formData.mapDescription || !formData.worldLore}
+              disabled={!formData.title || !formData.mapDescription || !formData.worldLore}
               className="flex-[2] bg-primary hover:bg-primary/80 font-headline h-12 text-lg shadow-xl shadow-primary/20"
             >
-              {loading ? <Loader2 className="animate-spin" /> : <Sparkles className="mr-2 h-5 w-5" />}
+              <Sparkles className="mr-2 h-5 w-5" />
               Gerar Estrutura Sandbox
             </Button>
           </div>
@@ -227,10 +225,9 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel }: P
             </Button>
             <Button 
               onClick={handleFinishAndSave}
-              disabled={saving}
               className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 font-headline h-14 rounded-xl text-lg shadow-2xl shadow-accent/20 gap-3"
             >
-              {saving ? <Loader2 size={24} className="animate-spin" /> : <Save size={24} />}
+              <Save size={24} />
               SALVAR NO CLOUD & CARREGAR
             </Button>
           </div>

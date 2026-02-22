@@ -12,18 +12,17 @@ import { doc, updateDoc } from 'firebase/firestore';
 
 interface ConsequencesToolProps {
   activeSession: any | null;
+  setGlobalLoading: (loading: boolean) => void;
 }
 
-export function ConsequencesTool({ activeSession }: ConsequencesToolProps) {
+export function ConsequencesTool({ activeSession, setGlobalLoading }: ConsequencesToolProps) {
   const { user } = useUser();
   const db = useFirestore();
 
   const [playerAction, setPlayerAction] = useState('');
   const [context, setContext] = useState('');
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ManageConsequencesOutput | null>(null);
 
-  // Restaurar do Firestore
   useEffect(() => {
     if (activeSession?.toolStates?.consequences) {
       setPlayerAction(activeSession.toolStates.consequences.playerAction || '');
@@ -44,7 +43,7 @@ export function ConsequencesTool({ activeSession }: ConsequencesToolProps) {
 
   const handleGenerate = async () => {
     if (!playerAction.trim()) return;
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const data = await manageConsequences({ 
         playerAction, 
@@ -59,7 +58,7 @@ export function ConsequencesTool({ activeSession }: ConsequencesToolProps) {
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -73,7 +72,7 @@ export function ConsequencesTool({ activeSession }: ConsequencesToolProps) {
 
   return (
     <div className="space-y-4 h-full flex flex-col">
-      {!result && !loading ? (
+      {!result ? (
         <div className="space-y-3 animate-in fade-in duration-300">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-accent uppercase tracking-wider">Ação Crucial dos Jogadores</label>
@@ -101,7 +100,7 @@ export function ConsequencesTool({ activeSession }: ConsequencesToolProps) {
           </div>
           <Button 
             onClick={handleGenerate} 
-            disabled={loading || !playerAction.trim()}
+            disabled={!playerAction.trim()}
             className="w-full bg-primary hover:bg-primary/80 font-headline"
           >
             Calcular Repercussões
@@ -109,14 +108,7 @@ export function ConsequencesTool({ activeSession }: ConsequencesToolProps) {
         </div>
       ) : null}
 
-      {loading && (
-        <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
-          <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
-          <p className="font-headline italic text-xs text-center">Calculando o efeito borboleta...</p>
-        </div>
-      )}
-
-      {result && !loading && (
+      {result && (
         <ScrollArea className="flex-1 pr-3 -mr-3">
           <div className="space-y-4 animate-in slide-in-from-right-2 duration-500 pb-4">
             <ConsequenceSection 

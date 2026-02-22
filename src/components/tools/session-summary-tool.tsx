@@ -12,17 +12,16 @@ import { doc, updateDoc } from 'firebase/firestore';
 
 interface SessionSummaryToolProps {
   activeSession: any | null;
+  setGlobalLoading: (loading: boolean) => void;
 }
 
-export function SessionSummaryTool({ activeSession }: SessionSummaryToolProps) {
+export function SessionSummaryTool({ activeSession, setGlobalLoading }: SessionSummaryToolProps) {
   const { user } = useUser();
   const db = useFirestore();
 
   const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SummarizeSessionOutput | null>(null);
 
-  // Restaurar do Firestore
   useEffect(() => {
     if (activeSession?.toolStates?.summary) {
       setInput(activeSession.toolStates.summary.input || '');
@@ -42,7 +41,7 @@ export function SessionSummaryTool({ activeSession }: SessionSummaryToolProps) {
 
   const handleSummarize = async () => {
     if (!input.trim()) return;
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const data = await summarizeSession({ sessionSummary: input });
       setResult(data);
@@ -54,7 +53,7 @@ export function SessionSummaryTool({ activeSession }: SessionSummaryToolProps) {
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -68,7 +67,7 @@ export function SessionSummaryTool({ activeSession }: SessionSummaryToolProps) {
 
   return (
     <div className="space-y-4">
-      {!result && !loading ? (
+      {!result ? (
         <div className="space-y-4 animate-in fade-in duration-300">
           <Textarea 
             placeholder="Relate o que aconteceu na última sessão..."
@@ -81,7 +80,7 @@ export function SessionSummaryTool({ activeSession }: SessionSummaryToolProps) {
           />
           <Button 
             onClick={handleSummarize} 
-            disabled={loading || !input.trim()}
+            disabled={!input.trim()}
             className="w-full bg-primary hover:bg-primary/80 text-white font-headline"
           >
             Analisar Sessão
@@ -89,14 +88,7 @@ export function SessionSummaryTool({ activeSession }: SessionSummaryToolProps) {
         </div>
       ) : null}
 
-      {loading && (
-        <div className="py-20 flex flex-col items-center justify-center space-y-4 text-muted-foreground animate-in fade-in duration-300">
-          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-          <p className="font-headline italic text-sm">Consultando os arquivos do Copiloto...</p>
-        </div>
-      )}
-
-      {!loading && result && (
+      {result && (
         <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500">
           <div className="grid grid-cols-1 gap-3">
             <div className="space-y-2 p-3 rounded-lg bg-black/20 border border-white/5">

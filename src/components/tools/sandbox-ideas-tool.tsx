@@ -14,9 +14,10 @@ import { doc, updateDoc } from 'firebase/firestore';
 
 interface SandboxIdeasToolProps {
   activeSession: any | null;
+  setGlobalLoading: (loading: boolean) => void;
 }
 
-export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
+export function SandboxIdeasTool({ activeSession, setGlobalLoading }: SandboxIdeasToolProps) {
   const { user } = useUser();
   const db = useFirestore();
 
@@ -25,10 +26,8 @@ export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
     factionsContext: '',
     pastEventsSummary: ''
   });
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<GenerateSandboxIdeasOutput | null>(null);
 
-  // 1. Restaurar do Firestore
   useEffect(() => {
     if (activeSession?.toolStates?.sandbox) {
       setFormData(prev => ({ ...prev, ...activeSession.toolStates.sandbox }));
@@ -48,7 +47,7 @@ export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
 
   const handleGenerate = async () => {
     if (!formData.situation.trim()) return;
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const data = await generateSandboxIdeas({
         ...formData,
@@ -64,7 +63,7 @@ export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -84,7 +83,7 @@ export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
 
   return (
     <div className="space-y-4 h-full flex flex-col">
-      {!result && !loading ? (
+      {!result ? (
         <div className="space-y-3 animate-in fade-in duration-300">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-accent uppercase tracking-widest">Ponto de Partida / Gancho</label>
@@ -106,7 +105,7 @@ export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
           </div>
           <Button 
             onClick={handleGenerate} 
-            disabled={loading || !formData.situation.trim()}
+            disabled={!formData.situation.trim()}
             className="w-full bg-primary hover:bg-primary/80 font-headline"
           >
             Gerar Ramificações Sandbox
@@ -114,14 +113,7 @@ export function SandboxIdeasTool({ activeSession }: SandboxIdeasToolProps) {
         </div>
       ) : null}
 
-      {loading && (
-        <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
-          <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
-          <p className="font-headline italic text-xs text-center">Tecendo as teias do Sandbox...</p>
-        </div>
-      )}
-
-      {result && !loading && (
+      {result && (
         <ScrollArea className="flex-1 pr-3 -mr-3">
           <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500 pb-4">
             <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg">

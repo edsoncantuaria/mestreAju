@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Map as MapIcon, Image as ImageIcon, Terminal, Check, X, Download, Info } from 'lucide-react';
+import { Users, Shield, Plus, Loader2, Save, Sparkles, Trash2, ChevronRight, UserCircle, Target, Map as MapIcon, Terminal, Check, X, Download, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +10,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { generateNpc } from '@/ai/flows/generate-npc-flow';
 import { generateFaction } from '@/ai/flows/generate-faction-flow';
 import { generateLocation } from '@/ai/flows/generate-location-flow';
-import { generateVisualArt } from '@/ai/flows/generate-image-flow';
 import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
@@ -18,14 +17,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface NpcFactionManagerToolProps {
   activeSession: any | null;
+  setGlobalLoading: (loading: boolean) => void;
 }
 
-export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolProps) {
+export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFactionManagerToolProps) {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [imageLoading, setImageLoading] = useState<string | null>(null);
   const [copiedMacro, setCopiedMacro] = useState<string | null>(null);
   const [copiedImport, setCopiedImport] = useState<string | null>(null);
 
@@ -50,7 +48,7 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
 
   const handleGenerateNpc = async () => {
     if (!activeSession) return;
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const result = await generateNpc({ context: activeSession.worldLore });
       const npcId = `npc-${Date.now()}`;
@@ -71,35 +69,15 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
       toast({ title: "NPC Manifestado!", description: `${result.name} foi adicionado ao seu mundo.` });
     } catch (e) {
       console.error(e);
+      toast({ variant: "destructive", title: "Erro na IA", description: "Não foi possível manifestar o NPC." });
     } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerateImage = async (type: 'npcs' | 'locations', id: string, description: string) => {
-    setImageLoading(id);
-    try {
-      const { imageUrl } = await generateVisualArt({ 
-        description, 
-        type: type === 'npcs' ? 'npc' : 'location' 
-      });
-      const docRef = doc(db!, `users/${user!.uid}/campaigns/default-campaign/${type}/${id}`);
-      await updateDoc(docRef, { 
-        [type === 'npcs' ? 'tokenImageUrl' : 'mapImageUrl']: imageUrl,
-        dateLastModified: new Date().toISOString()
-      });
-      toast({ title: "Arte Gerada!", description: "A imagem foi salva no registro." });
-    } catch (e) {
-      console.error(e);
-      toast({ variant: "destructive", title: "Erro na Arte", description: "Não foi possível gerar a imagem." });
-    } finally {
-      setImageLoading(null);
+      setGlobalLoading(false);
     }
   };
 
   const handleGenerateLocation = async () => {
     if (!activeSession) return;
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const result = await generateLocation({ context: activeSession.worldLore });
       const locationId = `loc-${Date.now()}`;
@@ -119,14 +97,15 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
       toast({ title: "Local Mapeado!", description: `${result.name} agora existe no mundo.` });
     } catch (e) {
       console.error(e);
+      toast({ variant: "destructive", title: "Erro na IA", description: "Não foi possível mapear o local." });
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
   const handleGenerateFaction = async () => {
     if (!activeSession) return;
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const result = await generateFaction({ context: activeSession.worldLore });
       const factionId = `faction-${Date.now()}`;
@@ -145,15 +124,21 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
       toast({ title: "Facção Criada!", description: `${result.name} agora influencia a região.` });
     } catch (e) {
       console.error(e);
+      toast({ variant: "destructive", title: "Erro na IA", description: "Não foi possível criar a facção." });
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
   const handleDelete = async (type: string, id: string) => {
     if (!user || !db) return;
-    await deleteDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/${type}/${id}`));
-    toast({ title: "Registro Apagado", description: "O item foi removido do seu mundo." });
+    setGlobalLoading(true);
+    try {
+      await deleteDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/${type}/${id}`));
+      toast({ title: "Registro Apagado", description: "O item foi removido do seu mundo." });
+    } finally {
+      setGlobalLoading(false);
+    }
   };
 
   const copyText = (text: string, type: 'macro' | 'import') => {
@@ -177,8 +162,8 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
         </TabsList>
 
         <TabsContent value="npcs" className="flex-1 flex flex-col mt-4 space-y-3 overflow-hidden">
-          <Button onClick={handleGenerateNpc} disabled={loading} className="w-full bg-primary/20 border-primary/40 text-accent h-9">
-            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Sparkles size={14} className="mr-2" />} Gerar NPC
+          <Button onClick={handleGenerateNpc} className="w-full bg-primary/20 border-primary/40 text-accent h-9">
+            <Sparkles size={14} className="mr-2" /> Gerar NPC
           </Button>
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-3">
@@ -186,19 +171,7 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
                 <Card key={npc.id} className="bg-black/20 border-white/5 overflow-hidden group">
                   <div className="flex">
                     <div className="w-16 h-16 bg-white/5 border-r border-white/5 flex items-center justify-center relative">
-                      {npc.tokenImageUrl ? (
-                        <img src={npc.tokenImageUrl} className="w-full h-full object-cover" />
-                      ) : (
-                        <UserCircle size={24} className="text-muted-foreground/20" />
-                      )}
-                      <Button 
-                        size="icon" variant="ghost" 
-                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleGenerateImage('npcs', npc.id, `${npc.race} ${npc.dndClass}, ${npc.description}`)}
-                        disabled={imageLoading === npc.id}
-                      >
-                        {imageLoading === npc.id ? <Loader2 className="animate-spin h-4 w-4" /> : <ImageIcon size={14} />}
-                      </Button>
+                      <UserCircle size={24} className="text-muted-foreground/20" />
                     </div>
                     <div className="flex-1 p-3">
                       <div className="flex justify-between items-start">
@@ -225,8 +198,8 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
         </TabsContent>
 
         <TabsContent value="factions" className="flex-1 flex flex-col mt-4 space-y-3 overflow-hidden">
-          <Button onClick={handleGenerateFaction} disabled={loading} className="w-full bg-cyan-500/10 border-cyan-500/30 text-cyan-400 h-9">
-            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <Target size={14} className="mr-2" />} Criar Facção
+          <Button onClick={handleGenerateFaction} className="w-full bg-cyan-500/10 border-cyan-500/30 text-cyan-400 h-9">
+            <Target size={14} className="mr-2" /> Criar Facção
           </Button>
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-3">
@@ -247,8 +220,8 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
         </TabsContent>
 
         <TabsContent value="locations" className="flex-1 flex flex-col mt-4 space-y-3 overflow-hidden">
-          <Button onClick={handleGenerateLocation} disabled={loading} className="w-full bg-green-500/10 border-green-500/30 text-green-400 h-9">
-            {loading ? <Loader2 className="animate-spin h-4 w-4" /> : <MapIcon size={14} className="mr-2" />} Gerar Local
+          <Button onClick={handleGenerateLocation} className="w-full bg-green-500/10 border-green-500/30 text-green-400 h-9">
+            <MapIcon size={14} className="mr-2" /> Gerar Local
           </Button>
           <ScrollArea className="flex-1 pr-3">
             <div className="space-y-3">
@@ -256,19 +229,7 @@ export function NpcFactionManagerTool({ activeSession }: NpcFactionManagerToolPr
                 <Card key={loc.id} className="bg-black/20 border-white/5 overflow-hidden group">
                   <div className="flex">
                     <div className="w-16 h-16 bg-white/5 border-r border-white/5 flex items-center justify-center relative">
-                      {loc.mapImageUrl ? (
-                        <img src={loc.mapImageUrl} className="w-full h-full object-cover" />
-                      ) : (
-                        <MapIcon size={24} className="text-muted-foreground/20" />
-                      )}
-                      <Button 
-                        size="icon" variant="ghost" 
-                        className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleGenerateImage('locations', loc.id, `Fantasy ${loc.type} called ${loc.name}, ${loc.description}`)}
-                        disabled={imageLoading === loc.id}
-                      >
-                        {imageLoading === loc.id ? <Loader2 className="animate-spin h-4 w-4" /> : <ImageIcon size={14} />}
-                      </Button>
+                      <MapIcon size={24} className="text-muted-foreground/20" />
                     </div>
                     <div className="flex-1 p-3">
                       <div className="flex justify-between items-start">

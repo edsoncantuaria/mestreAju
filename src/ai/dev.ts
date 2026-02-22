@@ -11,4 +11,3 @@ import '@/ai/flows/prepare-session-flow.ts';
 import '@/ai/flows/generate-npc-flow.ts';
 import '@/ai/flows/generate-faction-flow.ts';
 import '@/ai/flows/generate-location-flow.ts';
-import '@/ai/flows/generate-image-flow.ts';

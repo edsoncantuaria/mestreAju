@@ -11,9 +11,10 @@ import { doc, updateDoc } from 'firebase/firestore';
 
 interface ContextAnalysisToolProps {
   activeSession: any | null;
+  setGlobalLoading: (loading: boolean) => void;
 }
 
-export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps) {
+export function ContextAnalysisTool({ activeSession, setGlobalLoading }: ContextAnalysisToolProps) {
   const { user } = useUser();
   const db = useFirestore();
 
@@ -24,10 +25,8 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
     factions: '',
     promises: ''
   });
-  const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AnalyzeContextOutput | null>(null);
 
-  // 1. Restaurar estado persistente do Firestore
   useEffect(() => {
     if (activeSession?.toolStates?.analysis) {
       setFormData(prev => ({ ...prev, ...activeSession.toolStates.analysis }));
@@ -37,7 +36,6 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
     }
   }, [activeSession?.id]);
 
-  // 2. Escutar contexto vindo de outras ferramentas (ex: Sessão Ativa)
   useEffect(() => {
     if (activeSession?.activeContext?.targetTool === 'analysis') {
       const incomingData = activeSession.activeContext.data;
@@ -50,7 +48,6 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
       setFormData(newFormData);
       persistToolState(newFormData);
 
-      // Limpar o sinalizador de contexto no Firestore
       if (db && user && activeSession.id) {
         const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
         updateDoc(sessionRef, { 'activeContext': null });
@@ -68,7 +65,7 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
 
   const handleAnalyze = async () => {
     if (!formData.situation.trim()) return;
-    setLoading(true);
+    setGlobalLoading(true);
     try {
       const data = await analyzeContext({
         ...formData,
@@ -84,7 +81,7 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
     } catch (error) {
       console.error(error);
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -104,7 +101,7 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
 
   return (
     <div className="space-y-4">
-      {!result && !loading ? (
+      {!result ? (
         <div className="space-y-3 animate-in fade-in duration-300">
           {activeSession && (
             <div className="flex items-center gap-2 p-2 bg-green-500/10 border border-green-500/20 rounded text-[9px] text-green-400">
@@ -141,7 +138,7 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
           </div>
           <Button 
             onClick={handleAnalyze} 
-            disabled={loading || !formData.situation.trim()}
+            disabled={!formData.situation.trim()}
             className="w-full bg-primary hover:bg-primary/80 font-headline"
           >
             Analisar Contexto
@@ -149,14 +146,7 @@ export function ContextAnalysisTool({ activeSession }: ContextAnalysisToolProps)
         </div>
       ) : null}
 
-      {loading && (
-        <div className="py-20 flex flex-col items-center justify-center text-muted-foreground animate-in fade-in duration-300">
-          <Loader2 className="h-8 w-8 animate-spin text-accent mb-4" />
-          <p className="font-headline italic text-xs">Cruzando dados da preparação com a cena atual...</p>
-        </div>
-      )}
-
-      {result && !loading && (
+      {result && (
         <div className="space-y-4 animate-in slide-in-from-bottom-2 duration-500">
           <div className="p-3 bg-accent/5 border border-accent/20 rounded-lg text-xs leading-relaxed text-muted-foreground italic border-l-2">
             {result.analise}

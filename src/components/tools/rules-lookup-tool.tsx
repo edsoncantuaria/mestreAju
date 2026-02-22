@@ -14,20 +14,19 @@ import { doc, updateDoc } from 'firebase/firestore';
 
 interface RulesLookupToolProps {
   activeSession: any | null;
+  setGlobalLoading: (loading: boolean) => void;
 }
 
-export function RulesLookupTool({ activeSession }: RulesLookupToolProps) {
+export function RulesLookupTool({ activeSession, setGlobalLoading }: RulesLookupToolProps) {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
 
   const [queryText, setQueryText] = useState('');
-  const [loading, setLoading] = useState(false);
   const [ruleResult, setRuleResult] = useState<any | null>(null);
   const [monsterResult, setMonsterResult] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState('rules');
 
-  // Restaurar do Firestore
   useEffect(() => {
     if (activeSession?.toolStates?.rules_lookup) {
       setQueryText(activeSession.toolStates.rules_lookup.queryText || '');
@@ -51,7 +50,7 @@ export function RulesLookupTool({ activeSession }: RulesLookupToolProps) {
 
   const handleSearch = async () => {
     if (!queryText.trim()) return;
-    setLoading(true);
+    setGlobalLoading(true);
     const index = queryText.toLowerCase().replace(/\s+/g, '-');
 
     try {
@@ -92,8 +91,9 @@ export function RulesLookupTool({ activeSession }: RulesLookupToolProps) {
       persistToolState({});
     } catch (error) {
       console.error(error);
+      toast({ variant: "destructive", title: "Erro na Busca", description: "Falha ao conectar com as APIs oficiais." });
     } finally {
-      setLoading(false);
+      setGlobalLoading(false);
     }
   };
 
@@ -139,8 +139,8 @@ export function RulesLookupTool({ activeSession }: RulesLookupToolProps) {
           onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
           className="bg-background/30 border-white/5 h-9 text-xs"
         />
-        <Button size="sm" onClick={handleSearch} disabled={loading} className="bg-primary h-9">
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
+        <Button size="sm" onClick={handleSearch} className="bg-primary h-9">
+          <Search size={14} />
         </Button>
       </div>
 
