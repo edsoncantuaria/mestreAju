@@ -217,14 +217,15 @@ function ScreenDungeonMasterContent() {
     }
   }, [activeSession?.id]);
 
-  // Efeito 2: Tentar restaurar a última sessão silenciosamente
+  // Efeito 2: Tentar restaurar a última sessão silenciosamente ou mostrar lista/criação
   useEffect(() => {
-    if (!isInitializing) return; // Só roda uma vez na montagem/login
+    if (!isInitializing || isUserLoading) return;
 
-    if (user && !loadingSessions && !loadingProfile) {
+    // Aguarda carregar as sessões e o perfil antes de tomar uma decisão
+    if (user && !loadingSessions && !loadingProfile && sessions !== null) {
       const savedSessionId = userProfile?.lastActiveSessionId || localStorage.getItem('mestreaju_active_session_id');
       
-      if (savedSessionId && sessions) {
+      if (savedSessionId && sessions.length > 0) {
         const found = sessions.find((s: any) => s.id === savedSessionId);
         if (found) {
           setActiveSessionId(found.id);
@@ -233,19 +234,20 @@ function ScreenDungeonMasterContent() {
         }
       }
 
-      // Se não encontrou nenhuma sessão salva ou o ID não existe mais
+      // Se chegamos aqui, nenhuma sessão foi restaurada automaticamente
       setIsInitializing(false);
       
-      // Se não há nenhuma sessão no banco, abre o formulário de criação
-      if (!sessions || sessions.length === 0) {
-        setIsModalOpen(true);
+      // Se não há NENHUMA sessão no banco, mostramos o formulário de criação
+      if (sessions.length === 0) {
         setShowNewSessionForm(true);
-      } else if (!activeSessionId) {
-        // Se há sessões mas nenhuma ativa, abre o modal de escolha
+        setIsModalOpen(true);
+      } else {
+        // Se existem sessões mas nenhuma está ativa, mostramos a LISTA (Load Chronicle)
+        setShowNewSessionForm(false);
         setIsModalOpen(true);
       }
     }
-  }, [user, loadingSessions, loadingProfile, sessions, userProfile, isInitializing, activeSessionId]);
+  }, [user, isUserLoading, loadingSessions, loadingProfile, sessions, userProfile, isInitializing]);
 
   const updateActiveTools = async (tools: ToolId[]) => {
     setActiveTools(tools);
