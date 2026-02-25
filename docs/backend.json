@@ -55,7 +55,7 @@
         },
         "campaignId": {
           "type": "string",
-          "description": "Reference to the Campaign this faction belongs to. (Relationship: Campaign 1:N Faction)"
+          "description": "Reference to the Campaign this faction belongs to."
         },
         "name": {
           "type": "string",
@@ -63,31 +63,28 @@
         },
         "description": {
           "type": "string",
-          "description": "A detailed description of the faction, including its ideology, goals, methods, resources, and general standing in the world."
+          "description": "A detailed description of the faction."
         },
         "alignment": {
           "type": "string",
-          "description": "The moral and ethical alignment of the faction (e.g., 'Lawful Good', 'Chaotic Evil')."
+          "description": "The moral and ethical alignment of the faction."
         },
         "powerLevel": {
           "type": "string",
-          "description": "Indicates the level of influence or power the faction holds (e.g., 'Local', 'Regional', 'Global')."
+          "description": "Indicates the level of influence or power the faction holds."
         },
         "agendas": {
           "type": "array",
-          "description": "A list of key hidden or open agendas and objectives that drive the faction's actions.",
           "items": {
             "type": "string"
           }
         },
         "dateCreated": {
           "type": "string",
-          "description": "Timestamp indicating when the faction record was created.",
           "format": "date-time"
         },
         "dateLastModified": {
           "type": "string",
-          "description": "Timestamp indicating when the faction record was last updated.",
           "format": "date-time"
         }
       },
@@ -107,72 +104,57 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Npc",
       "type": "object",
-      "description": "Represents a Non-Player Character (NPC) crucial to the campaign or specific sessions, providing depth and interaction opportunities.",
+      "description": "Represents a Non-Player Character (NPC) crucial to the campaign.",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Unique identifier for the Npc entity."
+          "type": "string"
         },
         "campaignId": {
-          "type": "string",
-          "description": "Reference to the Campaign this NPC primarily belongs to. (Relationship: Campaign 1:N Npc)"
+          "type": "string"
         },
         "name": {
-          "type": "string",
-          "description": "The full name of the Non-Player Character."
+          "type": "string"
         },
         "race": {
-          "type": "string",
-          "description": "The race or species of the NPC (e.g., 'Human', 'Elf', 'Dwarf', 'Orc')."
+          "type": "string"
         },
         "dndClass": {
-          "type": "string",
-          "description": "The Dungeons & Dragons 5e class or primary profession of the NPC (e.g., 'Warrior', 'Wizard', 'Merchant', 'Rogue')."
+          "type": "string"
         },
         "description": {
-          "type": "string",
-          "description": "A detailed description of the NPC's physical appearance, personality traits, and notable mannerisms."
+          "type": "string"
         },
         "backstory": {
-          "type": "string",
-          "description": "A brief summary of the NPC's personal history, significant past events, and key relationships."
+          "type": "string"
         },
         "alignment": {
-          "type": "string",
-          "description": "The moral and ethical alignment of the NPC (e.g., 'Neutral Good', 'Lawful Evil', 'Chaotic Neutral')."
+          "type": "string"
         },
         "motivations": {
-          "type": "string",
-          "description": "The underlying reasons or desires that drive the NPC's actions and decisions, both overt and subtle."
+          "type": "string"
         },
         "secrets": {
-          "type": "string",
-          "description": "Any hidden information, truths, vulnerabilities, or past actions that the NPC keeps concealed from others."
+          "type": "string"
         },
         "tokenImageUrl": {
           "type": "string",
-          "description": "URL for the NPC's token image in Roll20 or similar platforms.",
           "format": "uri"
         },
         "roll20Macro": {
-          "type": "string",
-          "description": "A Roll20 Roll Template macro that acts as a quick statblock for the NPC."
+          "type": "string"
         },
         "factionIds": {
           "type": "array",
-          "description": "References to Faction entities that the NPC is associated with, belongs to, or influences. (Relationship: Npc N:N Faction)",
           "items": {
             "type": "string"
           }
         },
         "dateCreated": {
           "type": "string",
-          "description": "Timestamp indicating when the NPC record was created.",
           "format": "date-time"
         },
         "dateLastModified": {
           "type": "string",
-          "description": "Timestamp indicating when the campaign record was last updated.",
           "format": "date-time"
         }
       },
@@ -196,52 +178,42 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Location",
       "type": "object",
-      "description": "Represents a specific place, area, or region within the campaign world that players can visit, interact with, or where events unfold.",
+      "description": "Represents a specific place in the campaign world.",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Unique identifier for the Location entity."
+          "type": "string"
         },
         "campaignId": {
-          "type": "string",
-          "description": "Reference to the Campaign this location belongs to. (Relationship: Campaign 1:N Location)"
+          "type": "string"
         },
         "name": {
-          "type": "string",
-          "description": "The name of the location (e.g., 'Waterdeep', 'The Sunken Temple', 'Whispering Woods')."
+          "type": "string"
         },
         "type": {
-          "type": "string",
-          "description": "The type or category of the location (e.g., 'City', 'Town', 'Dungeon', 'Forest', 'Mountain', 'Inn')."
+          "type": "string"
         },
         "description": {
-          "type": "string",
-          "description": "A detailed description of the location, including its appearance, atmosphere, history, and key characteristics."
+          "type": "string"
         },
         "mapImageUrl": {
           "type": "string",
-          "description": "URL for the location's tactical or regional map in Roll20.",
           "format": "uri"
         },
         "features": {
           "type": "array",
-          "description": "A list of prominent features, landmarks, or points of interest within the location.",
           "items": {
             "type": "string"
           }
         },
         "dominantFactionId": {
-          "type": "string",
-          "description": "Optional reference to the Faction entity that exerts the most control, influence, or ownership over this location. (Relationship: Faction 1:N Location)"
+          "type": "string"
         },
         "dateCreated": {
           "type": "string",
-          "description": "Timestamp indicating when the location record was created.",
           "format": "date-time"
         },
         "dateLastModified": {
           "type": "string",
-          "description": "Timestamp indicating when the location record was last updated.",
           "format": "date-time"
         }
       },
@@ -260,108 +232,88 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Session",
       "type": "object",
-      "description": "Represents a single game session within a D&D 5e campaign, storing its preparation details, context, and potential outcomes, as requested by the user for 'Preparar Sessão'.",
+      "description": "Represents a single game session.",
       "properties": {
         "id": {
-          "type": "string",
-          "description": "Unique identifier for the Session entity."
+          "type": "string"
         },
         "campaignId": {
-          "type": "string",
-          "description": "Reference to the Campaign this session belongs to. (Relationship: Campaign 1:N Session)"
+          "type": "string"
         },
         "title": {
-          "type": "string",
-          "description": "A descriptive title for the game session (e.g., 'The Raid on Serpent's Pass', 'Negotiations at the Iron Summit')."
+          "type": "string"
         },
         "sessionNumber": {
-          "type": "number",
-          "description": "The sequential number of this session within its campaign, useful for ordering."
+          "type": "number"
         },
         "description": {
-          "type": "string",
-          "description": "A summary of the session's main plot points, significant events that transpired (if played), or the planned agenda and objectives (if prepared)."
+          "type": "string"
         },
         "datePreparedOrPlayed": {
           "type": "string",
-          "description": "The date when this session was prepared or played.",
           "format": "date-time"
         },
         "worldContextSummary": {
-          "type": "string",
-          "description": "A concise summary of the world history, current events, and any critical background information directly relevant to the context of this specific session."
+          "type": "string"
         },
         "mapDescription": {
-          "type": "string",
-          "description": "A textual description of the primary map or area where the session takes place, detailing key geographical features and points of interest."
+          "type": "string"
         },
         "mapImageUrl": {
           "type": "string",
-          "description": "Optional URL to an image file of the map used for the session, linking to Roll20 assets.",
           "format": "uri"
         },
         "involvedFactionIds": {
           "type": "array",
-          "description": "References to Faction entities that are actively involved, present, or have significant influence in the events of this session. (Relationship: Session N:N Faction)",
           "items": {
             "type": "string"
           }
         },
         "involvedNpcIds": {
           "type": "array",
-          "description": "References to Npc entities that are key characters, antagonists, allies, or significant encounters in this session. (Relationship: Session N:N Npc)",
           "items": {
             "type": "string"
           }
         },
         "involvedLocationIds": {
           "type": "array",
-          "description": "References to Location entities that are central settings, scenes, or points of action for this session. (Relationship: Session N:N Location)",
           "items": {
             "type": "string"
           }
         },
         "plotHooks": {
           "type": "array",
-          "description": "A list of potential adventure hooks, starting points, or inciting incidents designed to engage players in a sandbox style, prompting exploration and decision-making.",
           "items": {
             "type": "string"
           }
         },
         "activeConflicts": {
           "type": "array",
-          "description": "A list of major conflicts, tensions, or developing crises that are currently unfolding or are central to the session's narrative.",
           "items": {
             "type": "string"
           }
         },
         "potentialDevelopments": {
           "type": "array",
-          "description": "AI-generated suggestions for 3-5 possible future story developments or branching paths based on the session's current context and player actions.",
           "items": {
             "type": "string"
           }
         },
         "unexpectedComplication": {
-          "type": "string",
-          "description": "AI-generated suggestion for a single unexpected complication, twist, or unforeseen event to introduce into the session."
+          "type": "string"
         },
         "hiddenHook": {
-          "type": "string",
-          "description": "AI-generated suggestion for a subtle or hidden plot hook, clue, or secret to plant for future discovery by the players."
+          "type": "string"
         },
         "politicalIntrigueSummary": {
-          "type": "string",
-          "description": "AI-generated summary of political elements, power struggles, factional interests, and potential betrayals relevant to the session's context."
+          "type": "string"
         },
         "dateCreated": {
           "type": "string",
-          "description": "Timestamp indicating when the session record was created.",
           "format": "date-time"
         },
         "dateLastModified": {
           "type": "string",
-          "description": "Timestamp indicating when the session record was last updated.",
           "format": "date-time"
         }
       },
@@ -386,6 +338,38 @@
         "dateCreated",
         "dateLastModified"
       ]
+    },
+    "Battlemap": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Battlemap",
+      "type": "object",
+      "description": "Represents a tactical battlegrid map for encounters.",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "imageUrl": { "type": "string", "format": "uri" },
+        "prompt": { "type": "string" },
+        "terrain": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "imageUrl", "ownerId", "createdAt"]
+    },
+    "Route": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Route",
+      "type": "object",
+      "description": "Represents a path or connection between locations.",
+      "properties": {
+        "id": { "type": "string" },
+        "from": { "type": "string" },
+        "to": { "type": "string" },
+        "distanceKm": { "type": "number" },
+        "terrainType": { "type": "string" },
+        "description": { "type": "string" },
+        "ownerId": { "type": "string" }
+      },
+      "required": ["id", "from", "to", "ownerId"]
     }
   },
   "auth": {
@@ -403,13 +387,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Root collection for all user-specific data. Each document represents a user profile. The `id` field of the document matches `userId` from the path.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the user."
-            }
-          ]
+          "description": "Root collection for all user-specific data."
         }
       },
       {
@@ -419,17 +397,7 @@
           "schema": {
             "$ref": "#/backend/entities/Campaign"
           },
-          "description": "Stores individual D&D 5e campaigns created and owned by a specific user. The 'id' field matches `campaignId` from the path. This document inherently defines the 'ownerId' through the path's `userId`.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the campaign owner."
-            },
-            {
-              "name": "campaignId",
-              "description": "The unique identifier for the campaign."
-            }
-          ]
+          "description": "Stores individual D&D 5e campaigns owned by a specific user."
         }
       },
       {
@@ -439,21 +407,7 @@
           "schema": {
             "$ref": "#/backend/entities/Faction"
           },
-          "description": "Details about factions within a specific campaign. Each document MUST include a denormalized 'ownerId' field (matching the parent `userId`) for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the campaign owner."
-            },
-            {
-              "name": "campaignId",
-              "description": "The unique identifier of the parent campaign."
-            },
-            {
-              "name": "factionId",
-              "description": "The unique identifier for the faction."
-            }
-          ]
+          "description": "Details about factions within a specific campaign."
         }
       },
       {
@@ -463,21 +417,7 @@
           "schema": {
             "$ref": "#/backend/entities/Npc"
           },
-          "description": "Details about Non-Player Characters (NPCs) within a specific campaign. Each document MUST include a denormalized 'ownerId' field (matching the parent `userId`) for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the campaign owner."
-            },
-            {
-              "name": "campaignId",
-              "description": "The unique identifier of the parent campaign."
-            },
-            {
-              "name": "npcId",
-              "description": "The unique identifier for the NPC."
-            }
-          ]
+          "description": "Details about NPCs within a specific campaign."
         }
       },
       {
@@ -487,21 +427,7 @@
           "schema": {
             "$ref": "#/backend/entities/Location"
           },
-          "description": "Details about locations within a specific campaign. Each document MUST include a denormalized 'ownerId' field (matching the parent `userId`) for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the campaign owner."
-            },
-            {
-              "name": "campaignId",
-              "description": "The unique identifier of the parent campaign."
-            },
-            {
-              "name": "locationId",
-              "description": "The unique identifier for the location."
-            }
-          ]
+          "description": "Details about locations within a specific campaign."
         }
       },
       {
@@ -511,21 +437,27 @@
           "schema": {
             "$ref": "#/backend/entities/Session"
           },
-          "description": "Details about individual game sessions (prepared or played) within a specific campaign, including AI-generated content. Each document MUST include a denormalized 'ownerId' field (matching the parent `userId`) for authorization independence.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique Firebase Authentication UID of the campaign owner."
-            },
-            {
-              "name": "campaignId",
-              "description": "The unique identifier of the parent campaign."
-            },
-            {
-              "name": "sessionId",
-              "description": "The unique identifier for the session."
-            }
-          ]
+          "description": "Details about individual game sessions within a specific campaign."
+        }
+      },
+      {
+        "path": "/users/{userId}/campaigns/{campaignId}/battlemaps/{mapId}",
+        "definition": {
+          "entityName": "Battlemap",
+          "schema": {
+            "$ref": "#/backend/entities/Battlemap"
+          },
+          "description": "Details about battlemaps within a specific campaign."
+        }
+      },
+      {
+        "path": "/users/{userId}/campaigns/{campaignId}/routes/{routeId}",
+        "definition": {
+          "entityName": "Route",
+          "schema": {
+            "$ref": "#/backend/entities/Route"
+          },
+          "description": "Details about regional routes within a specific campaign."
         }
       }
     ]

@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -8,84 +9,44 @@ service cloud.firestore {
      * Core Philosophy: 
      * This ruleset implements a strict User-Ownership model. All data is hierarchically 
      * organized under the creating user's unique ID to ensure total data isolation.
-     *
-     * Data Structure:
-     * - /users/{userId}: Root profile for the user.
-     * - /users/{userId}/campaigns/{campaignId}: Overarching D&D campaigns owned by the user.
-     * - /users/{userId}/campaigns/{campaignId}/[subcollections]: Related entities (Factions, NPCs, Locations, Sessions) 
-     *   nested within a specific campaign for logical grouping and access inheritance.
-     *
-     * Key Security Decisions:
-     * - Authorization Independence: Sub-collection documents include a denormalized 'ownerId' 
-     *   field to allow for performant, independent security checks without parent document lookups.
-     * - Prototyping Flexibility: Rules strictly enforce WHO can access data (authorization) 
-     *   but do not restrict the SHAPE of the content fields (schema), allowing for rapid iteration.
-     * - Destructive Operations: Update and Delete operations require explicit verification 
-     *   that the document exists and is owned by the requester.
      */
 
     // --- Helper Functions ---
 
-    /** @description Checks if the user is authenticated with Firebase Auth. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** @description Checks if the authenticated user's UID matches the provided userId. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** @description Checks if the document exists and belongs to the authenticated user. */
     function isExistingOwner(userId) {
       return resource != null && isOwner(userId);
     }
 
-    /** @description Validates that the internal ownerId field matches the authenticated user. */
     function validatesInternalOwner() {
       return request.resource.data.ownerId == request.auth.uid;
     }
 
-    /** @description Enforces immutability for critical relational fields. */
     function isFieldImmutable(fieldName) {
       return request.resource.data[fieldName] == resource.data[fieldName];
     }
 
     // --- Collection Rules ---
 
-    /**
-     * @description Rules for user profile documents.
-     * @path /users/{userId}
-     * @allow (create) User 'abc' creates document /users/abc
-     * @deny (create) User 'abc' attempts to create /users/xyz
-     * @principle Self-creation and strict ownership of the user root.
-     */
     match /users/{userId} {
       allow get, list: if isOwner(userId);
       allow create: if isOwner(userId) && request.resource.data.id == userId;
       allow update: if isExistingOwner(userId) && isFieldImmutable('id');
       allow delete: if isExistingOwner(userId);
 
-      /**
-       * @description Rules for D&D Campaigns.
-       * @path /users/{userId}/campaigns/{campaignId}
-       * @allow (get) User 'abc' reads /users/abc/campaigns/camp1
-       * @deny (update) User 'xyz' attempts to update /users/abc/campaigns/camp1
-       * @principle Path-based ownership ensures users only manage their own campaigns.
-       */
       match /campaigns/{campaignId} {
         allow get, list: if isOwner(userId);
         allow create: if isOwner(userId) && request.resource.data.id == campaignId;
         allow update: if isExistingOwner(userId) && isFieldImmutable('id');
         allow delete: if isExistingOwner(userId);
 
-        /**
-         * @description Rules for Factions within a campaign.
-         * @path /users/{userId}/campaigns/{campaignId}/factions/{factionId}
-         * @allow (create) User 'abc' creates faction with ownerId 'abc'.
-         * @deny (create) User 'abc' creates faction with ownerId 'xyz'.
-         * @principle Uses denormalized ownerId for authorization independence.
-         */
         match /factions/{factionId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
@@ -93,13 +54,6 @@ service cloud.firestore {
           allow delete: if isExistingOwner(userId);
         }
 
-        /**
-         * @description Rules for NPCs (Non-Player Characters).
-         * @path /users/{userId}/campaigns/{campaignId}/npcs/{npcId}
-         * @allow (list) User 'abc' lists their NPCs at the campaign path.
-         * @deny (delete) User 'abc' attempts to delete an NPC they don't own.
-         * @principle Relies on path-based security and denormalized identity.
-         */
         match /npcs/{npcId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
@@ -107,13 +61,6 @@ service cloud.firestore {
           allow delete: if isExistingOwner(userId);
         }
 
-        /**
-         * @description Rules for Campaign Locations.
-         * @path /users/{userId}/campaigns/{campaignId}/locations/{locationId}
-         * @allow (update) User 'abc' modifies a location description.
-         * @deny (create) User 'abc' creates location without required ownerId field.
-         * @principle Ensures locations are strictly tied to the campaign owner.
-         */
         match /locations/{locationId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
@@ -121,13 +68,6 @@ service cloud.firestore {
           allow delete: if isExistingOwner(userId);
         }
 
-        /**
-         * @description Rules for Game Sessions (including 'Preparar Sessão').
-         * @path /users/{userId}/campaigns/{campaignId}/sessions/{sessionId}
-         * @allow (create) User 'abc' saves a prepared session with AI content.
-         * @deny (get) Anonymous user attempts to read session details.
-         * @principle Protects user's creative content and prepared campaign history.
-         */
         match /sessions/{sessionId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
@@ -135,10 +75,6 @@ service cloud.firestore {
           allow delete: if isExistingOwner(userId);
         }
 
-        /**
-         * @description Rules for Battlegrid Maps.
-         * @path /users/{userId}/campaigns/{campaignId}/battlemaps/{mapId}
-         */
         match /battlemaps/{mapId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
@@ -146,10 +82,6 @@ service cloud.firestore {
           allow delete: if isExistingOwner(userId);
         }
 
-        /**
-         * @description Rules for Regional Routes.
-         * @path /users/{userId}/campaigns/{campaignId}/routes/{routeId}
-         */
         match /routes/{routeId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
