@@ -1,75 +1,160 @@
+/* Google Fonts — must be first @import (CSS spec) */
+@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:wght@300;400;500;600;700&family=Cinzel:wght@700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+/* Fonts loaded above via @import (must be before @tailwind) */
+
 @layer base {
   :root {
-    --background: 240 10% 4%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 7%;
-    --popover-foreground: 0 0% 98%;
+    /* OLED-dark palette (ui-ux-pro-max dark-mode recommendation) */
+    --background: 240 10% 3%;
+    /* true OLED near-black */
+    --foreground: 220 15% 88%;
+
+    --card: 240 8% 6%;
+    --card-foreground: 220 15% 88%;
+
+    --popover: 240 8% 7%;
+    --popover-foreground: 220 15% 88%;
+
+    /* Blood Red primary — DM brand */
     --primary: 0 72% 51%;
     --primary-foreground: 0 0% 98%;
-    --secondary: 240 5% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 5% 12%;
-    --muted-foreground: 240 5% 65%;
-    --accent: 45 93% 47%;
+
+    --secondary: 240 5% 14%;
+    --secondary-foreground: 0 0% 90%;
+
+    --muted: 240 5% 11%;
+    --muted-foreground: 240 4% 48%;
+
+    /* Burnished Gold accent */
+    --accent: 43 90% 52%;
     --accent-foreground: 240 10% 4%;
-    --destructive: 0 84% 60%;
+
+    --destructive: 0 78% 58%;
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5% 15%;
-    --input: 240 5% 15%;
+
+    /* Very subtle borders */
+    --border: 240 5% 11%;
+    --input: 240 5% 10%;
     --ring: 0 72% 51%;
-    --radius: 0.5rem;
+    --radius: 0.625rem;
+  }
+
+  /* Web Interface Guideline: color-scheme on html for proper dark scrollbars */
+  html {
+    color-scheme: dark;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    /* Web Interface Guideline: never transition:all — be specific */
+    transition-property: color, background-color, border-color, opacity, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    /* ease-out */
+    transition-duration: 150ms;
   }
+
   body {
-    @apply bg-background text-foreground font-body antialiased;
-    background-image: 
-      radial-gradient(circle at 50% 0%, rgba(139, 0, 0, 0.15), transparent 40%),
-      radial-gradient(circle at 0% 100%, rgba(218, 165, 32, 0.05), transparent 30%);
-    background-attachment: fixed;
+    font-family: 'Fira Sans', system-ui, -apple-system, sans-serif;
+    @apply bg-background text-foreground antialiased;
+    /* Web Interface Guideline: touch-action on body */
+    touch-action: manipulation;
   }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-headline tracking-tight;
+
+  /* Fira Code for all panel headers / labels (cockpit feel) */
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Fira Code', 'Cinzel', monospace;
+    @apply tracking-tight text-white;
   }
 }
 
-.glass-card {
-  @apply bg-card/60 backdrop-blur-md border border-white/5 shadow-2xl;
-}
-
-.dnd-border {
-  border: 1px solid transparent;
-  border-image: linear-gradient(to bottom, hsl(var(--accent)), transparent) 1;
-}
-
+/* ── Scrollbar — thin 3px for dense panels ─────────────── */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 3px;
+  height: 3px;
 }
+
 ::-webkit-scrollbar-track {
-  @apply bg-background;
+  background: transparent;
 }
+
 ::-webkit-scrollbar-thumb {
-  @apply bg-muted rounded-full border-2 border-background;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-primary;
+  background: hsl(var(--primary) / 0.5);
 }
 
-@keyframes glow {
-  0%, 100% { opacity: 0.5; }
-  50% { opacity: 1; }
+/* ── Utility: no-scrollbar ──────────────────────────────── */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
-.animate-glow {
-  animation: glow 3s ease-in-out infinite;
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* ── Panel glass card ───────────────────────────────────── */
+.panel-glass {
+  background: rgba(12, 12, 16, 0.72);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* ── Panel header separator glow line ─────────────────────  */
+.panel-header-glow {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.04), transparent);
+}
+
+/* ── Accent glow effects ────────────────────────────────── */
+.glow-primary {
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.25);
+}
+
+.glow-accent {
+  box-shadow: 0 0 20px hsl(var(--accent) / 0.25);
+}
+
+/* ── Focus ring (Web Interface Guideline: focus-visible) ── */
+*:focus-visible {
+  outline: 2px solid hsl(var(--primary) / 0.7);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion (Web Interface Guideline) ─────────────*/
+@media (prefers-reduced-motion: reduce) {
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Button / interactive cursor (ui-ux-pro-max guideline) ─*/
+button,
+[role="button"],
+a,
+label[for],
+select,
+[tabindex]:not([tabindex="-1"]) {
+  cursor: pointer;
 }

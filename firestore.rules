@@ -134,6 +134,28 @@ service cloud.firestore {
           allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
           allow delete: if isExistingOwner(userId);
         }
+
+        /**
+         * @description Rules for Battlegrid Maps.
+         * @path /users/{userId}/campaigns/{campaignId}/battlemaps/{mapId}
+         */
+        match /battlemaps/{mapId} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && validatesInternalOwner();
+          allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
+          allow delete: if isExistingOwner(userId);
+        }
+
+        /**
+         * @description Rules for Regional Routes.
+         * @path /users/{userId}/campaigns/{campaignId}/routes/{routeId}
+         */
+        match /routes/{routeId} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && validatesInternalOwner();
+          allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
+          allow delete: if isExistingOwner(userId);
+        }
       }
     }
   }

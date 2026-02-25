@@ -50,7 +50,7 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
   useEffect(() => {
     if (activeSession?.activeContext?.targetTool === 'entities') {
       const { type, name, context } = activeSession.activeContext.data;
-      
+
       // Auto-trigger generation based on context
       if (type === 'npc') {
         setActiveTab('npcs');
@@ -73,13 +73,13 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
     if (!activeSession) return;
     setGlobalLoading(true);
     try {
-      const result = await generateNpc({ 
+      const result = await generateNpc({
         context: contextOverride || activeSession.worldLore,
         role: nameOverride ? `Named as: ${nameOverride}` : undefined
       });
       const npcId = `npc-${Date.now()}`;
       const npcRef = doc(db!, `users/${user!.uid}/campaigns/default-campaign/npcs/${npcId}`);
-      
+
       const npcData = {
         ...result,
         name: nameOverride || result.name,
@@ -106,13 +106,13 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
     if (!activeSession) return;
     setGlobalLoading(true);
     try {
-      const result = await generateLocation({ 
+      const result = await generateLocation({
         context: contextOverride || activeSession.worldLore,
         type: nameOverride ? `Called: ${nameOverride}` : undefined
       });
       const locationId = `loc-${Date.now()}`;
       const locRef = doc(db!, `users/${user!.uid}/campaigns/default-campaign/locations/${locationId}`);
-      
+
       const locData = {
         ...result,
         name: nameOverride || result.name,
@@ -138,10 +138,10 @@ export function NpcFactionManagerTool({ activeSession, setGlobalLoading }: NpcFa
     if (!activeSession) return;
     setGlobalLoading(true);
     try {
-      const result = await generateFaction({ context: activeSession.worldLore });
+      const result = await generateFaction({ context: activeSession.worldLore, influence: 'Regional' });
       const factionId = `faction-${Date.now()}`;
       const factionRef = doc(db!, `users/${user!.uid}/campaigns/default-campaign/factions/${factionId}`);
-      
+
       const factionData = {
         ...result,
         id: factionId,
