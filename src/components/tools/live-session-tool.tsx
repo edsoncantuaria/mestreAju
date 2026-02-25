@@ -222,6 +222,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
         });
         await addDoc(collection(db, `${campaignPath}/npcs`), {
           ...npcData,
+          name: step.detalheOculto,
           ownerId: user.uid,
           createdAt: serverTimestamp()
         });
@@ -233,6 +234,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
         });
         await addDoc(collection(db, `${campaignPath}/locations`), {
           ...locData,
+          name: step.detalheOculto,
           ownerId: user.uid,
           createdAt: serverTimestamp()
         });
@@ -614,6 +616,25 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
                                   </Button>
                                 </TooltipTrigger>
                                 <TooltipContent><p className="text-[10px]">Analisar Contexto</p></TooltipContent>
+                              </Tooltip>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-6 w-6 text-lime-400 hover:bg-lime-400/20"
+                                    onClick={() => onContextAction('cartography', {
+                                      terrain: step.detalheOculto,
+                                      context: step.narrativa,
+                                      keyElements: "detalhes marcantes descritos na narrativa"
+                                    })}
+                                  >
+                                    <Map size={12} />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p className="text-[10px]">Gerar Battlegrid para este Local</p>
+                                </TooltipContent>
                               </Tooltip>
                               <Tooltip>
                                 <TooltipTrigger asChild>

@@ -68,6 +68,53 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
     const [copied, setCopied] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Context Listener for incoming data from Live Session
+    useEffect(() => {
+        if (activeSession?.activeContext?.targetTool === 'cartography') {
+            const { terrain, context, keyElements } = activeSession.activeContext.data;
+            setActiveTab('battlegrid');
+            setBgForm(prev => {
+                const newState = {
+                    ...prev,
+                    terrain: terrain || prev.terrain,
+                    locationContext: context || prev.locationContext,
+                    keyElements: keyElements || prev.keyElements
+                };
+                persistToolState({ bgForm: newState });
+                return newState;
+            });
+
+            // Clear context in Firestore
+            if (db && user && activeSession.id) {
+                updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`), {
+                    'activeContext': null
+                });
+            }
+        }
+    }, [activeSession?.activeContext, db, user, activeSession?.id]);
+
+    useEffect(() => {
+        if (activeSession?.toolStates?.cartography) {
+            if (activeSession.toolStates.cartography.bgForm) {
+                setBgForm(activeSession.toolStates.cartography.bgForm);
+            }
+            if (activeSession.toolStates.cartography.activeTab) {
+                setActiveTab(activeSession.toolStates.cartography.activeTab);
+            }
+        }
+        if (activeSession?.toolStates?.cartography_bg_result) {
+            setGeneratedPrompt(activeSession.toolStates.cartography_bg_result);
+        }
+    }, [activeSession?.id]);
+
+    const persistToolState = async (updates: any) => {
+        if (!db || !user || !activeSession) return;
+        const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+        updateDoc(sessionRef, {
+            [`toolStates.cartography`]: { bgForm, activeTab, ...updates }
+        });
+    };
+
     // Gallery
     const battlemapsQuery = useMemoFirebase(() =>
         (user && campaignPath) ? query(collection(db, `${campaignPath}/battlemaps`)) : null,
@@ -109,6 +156,10 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
         try {
             const result = await generateBattlegridPrompt(bgForm);
             setGeneratedPrompt(result);
+            if (db && user && activeSession) {
+                const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSession.id}`);
+                updateDoc(sessionRef, { 'toolStates.cartography_bg_result': result });
+            }
         } catch (error) {
             console.error(error);
             toast({ title: 'Erro ao gerar prompt', variant: 'destructive' });
@@ -218,7 +269,7 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
             {/* Tab Header */}
             <div className="flex gap-1 p-0.5 bg-black/40 rounded-xl border border-white/5 shrink-0">
                 <button
-                    onClick={() => setActiveTab('battlegrid')}
+                    onClick={() => { setActiveTab('battlegrid'); persistToolState({ activeTab: 'battlegrid' }); }}
                     className={cn(
                         "flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
                         activeTab === 'battlegrid' ? "bg-primary/90 text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-white"
@@ -227,7 +278,7 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
                     <Palette size={12} /> Battlegrid Studio
                 </button>
                 <button
-                    onClick={() => setActiveTab('regional')}
+                    onClick={() => { setActiveTab('regional'); persistToolState({ activeTab: 'regional' }); }}
                     className={cn(
                         "flex-1 py-2 px-3 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-1.5",
                         activeTab === 'regional' ? "bg-primary/90 text-white shadow-lg shadow-primary/20" : "text-muted-foreground hover:text-white"
@@ -248,7 +299,11 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
                                 {TERRAIN_PRESETS.map((preset) => (
                                     <button
                                         key={preset.value}
-                                        onClick={() => setBgForm(f => ({ ...f, terrain: preset.value }))}
+                                        onClick={() => {
+                                            const nextForm = { ...bgForm, terrain: preset.value };
+                                            setBgForm(nextForm);
+                                            persistToolState({ bgForm: nextForm });
+                                        }}
                                         className={cn(
                                             "p-2 rounded-lg border text-center transition-all text-[9px]",
                                             bgForm.terrain === preset.value
@@ -264,7 +319,11 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
                             <Input
                                 placeholder="Ou descreva o terreno..."
                                 value={bgForm.terrain}
-                                onChange={e => setBgForm(f => ({ ...f, terrain: e.target.value }))}
+                                onChange={e => {
+                                    const nextForm = { ...bgForm, terrain: e.target.value };
+                                    setBgForm(nextForm);
+                                    persistToolState({ bgForm: nextForm });
+                                }}
                                 className="h-7 text-[10px] bg-black/40 border-white/5"
                             />
                         </div>
@@ -275,7 +334,11 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
                             <Textarea
                                 placeholder="Ex: acampamento com 4 tendas, fogueira central, troncos como assentos, arbustos dispersos..."
                                 value={bgForm.keyElements}
-                                onChange={e => setBgForm(f => ({ ...f, keyElements: e.target.value }))}
+                                onChange={e => {
+                                    const nextForm = { ...bgForm, keyElements: e.target.value };
+                                    setBgForm(nextForm);
+                                    persistToolState({ bgForm: nextForm });
+                                }}
                                 className="bg-black/40 border-white/5 h-16 text-[10px] resize-none"
                             />
                         </div>
@@ -284,22 +347,38 @@ export function CartographyTool({ activeSession, setGlobalLoading, onContextActi
                         <div className="grid grid-cols-3 gap-2">
                             <div className="space-y-1">
                                 <label className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1"><Clock size={8} /> Hora</label>
-                                <Input placeholder="Noite..." value={bgForm.timeOfDay || ''} onChange={e => setBgForm(f => ({ ...f, timeOfDay: e.target.value }))} className="h-6 text-[9px] bg-black/40 border-white/5" />
+                                <Input placeholder="Noite..." value={bgForm.timeOfDay || ''} onChange={e => {
+                                    const nextForm = { ...bgForm, timeOfDay: e.target.value };
+                                    setBgForm(nextForm);
+                                    persistToolState({ bgForm: nextForm });
+                                }} className="h-6 text-[9px] bg-black/40 border-white/5" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1"><CloudSun size={8} /> Clima</label>
-                                <Input placeholder="Nevoeiro..." value={bgForm.weather || ''} onChange={e => setBgForm(f => ({ ...f, weather: e.target.value }))} className="h-6 text-[9px] bg-black/40 border-white/5" />
+                                <Input placeholder="Nevoeiro..." value={bgForm.weather || ''} onChange={e => {
+                                    const nextForm = { ...bgForm, weather: e.target.value };
+                                    setBgForm(nextForm);
+                                    persistToolState({ bgForm: nextForm });
+                                }} className="h-6 text-[9px] bg-black/40 border-white/5" />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-1"><Maximize2 size={8} /> Tamanho</label>
-                                <Input placeholder="25x25" value={bgForm.mapSize || ''} onChange={e => setBgForm(f => ({ ...f, mapSize: e.target.value }))} className="h-6 text-[9px] bg-black/40 border-white/5" />
+                                <Input placeholder="25x25" value={bgForm.mapSize || ''} onChange={e => {
+                                    const nextForm = { ...bgForm, mapSize: e.target.value };
+                                    setBgForm(nextForm);
+                                    persistToolState({ bgForm: nextForm });
+                                }} className="h-6 text-[9px] bg-black/40 border-white/5" />
                             </div>
                         </div>
 
                         {/* Style */}
                         <div className="space-y-1">
                             <label className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Estilo Artístico</label>
-                            <Select value={bgForm.style} onValueChange={v => setBgForm(f => ({ ...f, style: v as any }))}>
+                            <Select value={bgForm.style} onValueChange={v => {
+                                const nextForm = { ...bgForm, style: v as any };
+                                setBgForm(nextForm);
+                                persistToolState({ bgForm: nextForm });
+                            }}>
                                 <SelectTrigger className="h-7 text-[10px] bg-black/40 border-white/5">
                                     <SelectValue />
                                 </SelectTrigger>
