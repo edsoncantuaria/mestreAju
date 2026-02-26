@@ -370,6 +370,25 @@
         "ownerId": { "type": "string" }
       },
       "required": ["id", "from", "to", "ownerId"]
+    },
+    "Quest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Quest",
+      "type": "object",
+      "description": "Represents a quest or adventure hook in the campaign.",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "hook": { "type": "string" },
+        "objective": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "failed"] },
+        "keyNpcs": { "type": "array", "items": { "type": "string" } },
+        "keyLocations": { "type": "array", "items": { "type": "string" } },
+        "rewards": { "type": "array", "items": { "type": "string" } },
+        "ownerId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "title", "hook", "objective", "ownerId", "createdAt"]
     }
   },
   "auth": {
@@ -385,7 +404,11 @@
         "definition": {
           "entityName": "User",
           "schema": {
-            "$ref": "#/backend/entities/User"
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "lastActiveSessionId": { "type": "string" }
+            }
           },
           "description": "Root collection for all user-specific data."
         }
@@ -458,6 +481,16 @@
             "$ref": "#/backend/entities/Route"
           },
           "description": "Details about regional routes within a specific campaign."
+        }
+      },
+      {
+        "path": "/users/{userId}/campaigns/{campaignId}/quests/{questId}",
+        "definition": {
+          "entityName": "Quest",
+          "schema": {
+            "$ref": "#/backend/entities/Quest"
+          },
+          "description": "Details about quests within a specific campaign."
         }
       }
     ]

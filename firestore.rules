@@ -37,14 +37,14 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isExistingOwner(userId) && isFieldImmutable('id');
+      allow create: if isOwner(userId) && (request.resource.data.id == userId || request.resource.data.id == null);
+      allow update: if isExistingOwner(userId);
       allow delete: if isExistingOwner(userId);
 
       match /campaigns/{campaignId} {
         allow get, list: if isOwner(userId);
-        allow create: if isOwner(userId) && request.resource.data.id == campaignId;
-        allow update: if isExistingOwner(userId) && isFieldImmutable('id');
+        allow create: if isOwner(userId) && (request.resource.data.id == campaignId || request.resource.data.id == null);
+        allow update: if isExistingOwner(userId);
         allow delete: if isExistingOwner(userId);
 
         match /factions/{factionId} {
@@ -83,6 +83,13 @@ service cloud.firestore {
         }
 
         match /routes/{routeId} {
+          allow get, list: if isOwner(userId);
+          allow create: if isOwner(userId) && validatesInternalOwner();
+          allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
+          allow delete: if isExistingOwner(userId);
+        }
+
+        match /quests/{questId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
           allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
