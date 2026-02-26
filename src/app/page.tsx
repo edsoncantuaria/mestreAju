@@ -6,7 +6,7 @@ import {
   Activity, BookOpen, Sparkles, Users, Shield, Book,
   FolderOpen, ChevronRight, Loader2, Mail, Lock, LogOut,
   Cloud, History, Globe, ChevronDown, LayoutDashboard,
-  Minus, Maximize2, GripHorizontal, MapPin
+  Minus, Maximize2, GripHorizontal, MapPin, ChevronUp
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -149,95 +149,184 @@ interface PanelConfig {
   grow?: number;
   startOpen?: boolean;
   onClose?: () => void;
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  onMove?: (x: number, y: number) => void;
+  onResize?: (w: number, h: number) => void;
+  onFocus?: () => void;
+  zIndex?: number;
+  minimized?: boolean;
+  onToggleMinimize?: () => void;
 }
 
-function Panel({ id, label, icon: Icon, iconColor, tagColor, children, headerExtra, noPad, grow = 1, startOpen = true, onClose }: PanelConfig) {
-  const [open, setOpen] = useState(startOpen);
+interface WindowPosition {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+  isMinimized: boolean;
+  isMaximized: boolean;
+}
+
+const DEFAULT_WINDOW_SIZE = { width: 450, height: 500 };
+
+function Window({
+  id, label, icon: Icon, iconColor, tagColor, children, headerExtra, noPad,
+  x = 100, y = 100, width = 450, height = 500, zIndex = 10,
+  onClose, onMove, onResize, onFocus, minimized, onToggleMinimize
+}: PanelConfig) {
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, w: 0, h: 0 });
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    const target = e.target as HTMLElement;
+    const isResizer = target.closest('.resize-handle');
+    const isHeader = target.closest('.window-header');
+
+    if (isResizer) {
+      setIsResizing(true);
+      setResizeStart({ x: e.clientX, y: e.clientY, w: width, h: height });
+      target.setPointerCapture(e.pointerId);
+      e.stopPropagation();
+      onFocus?.();
+    } else if (isHeader) {
+      setIsDragging(true);
+      setDragOffset({ x: e.clientX - x, y: e.clientY - y });
+      target.setPointerCapture(e.pointerId);
+      e.stopPropagation();
+      onFocus?.();
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (isDragging) {
+      onMove?.(e.clientX - dragOffset.x, e.clientY - dragOffset.y);
+    } else if (isResizing) {
+      const dw = e.clientX - resizeStart.x;
+      const dh = e.clientY - resizeStart.y;
+      onResize?.(Math.max(300, resizeStart.w + dw), Math.max(200, resizeStart.h + dh));
+    }
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (isDragging || isResizing) {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      setIsDragging(false);
+      setIsResizing(false);
+    }
+  };
 
   return (
     <div
       id={id}
+      onPointerDown={e => !isDragging && onFocus?.()}
       className={cn(
-        'panel-glass rounded-xl flex flex-col overflow-hidden transition-[flex] duration-200 ease-out',
-        !open && 'shrink-0',
-        open ? 'min-h-[400px] sm:min-h-0' : 'h-[38px] sm:h-auto'
+        'panel-glass rounded-xl flex flex-col overflow-hidden absolute transition-all duration-300 select-none shadow-2xl',
+        isDragging && 'opacity-90 shadow-primary/20 scale-[1.01]',
+        minimized ? 'opacity-0 scale-95 pointer-events-none translate-y-20' : 'opacity-100 scale-100',
+        !isDragging && !isResizing && 'ease-out'
       )}
-      style={open
-        ? { flexGrow: grow, flexShrink: 1, flexBasis: '0px' }
-        : { flexGrow: 0, flexShrink: 0, flexBasis: '38px' }
-      }
+      style={{
+        left: x,
+        top: y,
+        width,
+        height,
+        zIndex,
+        boxShadow: zIndex > 20 ? '0 25px 80px -12px rgba(0, 0, 0, 0.9), 0 0 40px rgba(0, 0, 0, 0.4)' : '0 15px 40px -8px rgba(0, 0, 0, 0.6)',
+        border: zIndex > 20 ? '1px solid rgba(255, 255, 255, 0.2)' : '1px solid rgba(255, 255, 255, 0.08)',
+        backdropFilter: 'blur(30px) saturate(180%)',
+        background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%)'
+      }}
     >
-      {/* Header */}
+      {/* Window Header / Draggable Area */}
       <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
         className={cn(
-          'h-[38px] flex items-center gap-2 px-3 shrink-0 select-none group/header',
-          open && 'border-b border-white/[0.05]'
+          'h-[38px] flex items-center gap-2 px-3 shrink-0 cursor-move window-header group/header border-b border-white/[0.05]',
+          isDragging ? 'bg-white/[0.05]' : 'bg-white/[0.02]'
         )}
-        style={{ background: open ? 'linear-gradient(90deg, rgba(255,255,255,0.02), transparent)' : '' }}
       >
-        {/* Traffic-light: amber=open → click to close | dim=closed → click to open */}
-        {onClose ? (
+        <div className="flex items-center gap-1.5 mr-2">
           <button
-            onClick={onClose}
-            aria-label={`Fechar ${label}`}
-            className="w-[9px] h-[9px] rounded-full shrink-0 transition-colors duration-150 bg-rose-500/70 hover:bg-rose-500"
-          />
-        ) : (
+            onClick={e => { e.stopPropagation(); onClose?.(); }}
+            className="w-3 h-3 rounded-full bg-rose-500/80 hover:bg-rose-500 transition-colors border border-rose-900/40 flex items-center justify-center group/btn"
+          >
+            <X size={6} className="text-rose-900 opacity-0 group-hover/btn:opacity-100" />
+          </button>
           <button
-            onClick={() => setOpen(o => !o)}
-            aria-label={open ? `Minimizar ${label}` : `Restaurar ${label}`}
-            className={cn(
-              'w-[9px] h-[9px] rounded-full shrink-0 transition-colors duration-150',
-              open
-                ? 'bg-amber-400/70 hover:bg-amber-400'
-                : 'bg-white/15 hover:bg-green-400/80'
-            )}
-          />
-        )}
+            onClick={e => { e.stopPropagation(); onToggleMinimize?.(); }}
+            className="w-3 h-3 rounded-full bg-amber-500/80 hover:bg-amber-500 transition-colors border border-amber-900/40 flex items-center justify-center group/btn"
+          >
+            <Minus size={6} className="text-amber-900 opacity-0 group-hover/btn:opacity-100" />
+          </button>
+          <button
+            className="w-3 h-3 rounded-full bg-emerald-500/80 hover:bg-emerald-500 transition-colors border border-emerald-900/40 flex items-center justify-center group/btn"
+          >
+            <ChevronUp size={6} className="text-emerald-900 opacity-0 group-hover/btn:opacity-100" />
+          </button>
+        </div>
 
-        {/* Tag pill */}
-        <span className={cn('w-[3px] h-[14px] rounded-full shrink-0', tagColor)} />
-
-        <Icon size={12} className={cn('shrink-0 transition-colors', open ? iconColor : 'text-white/20')} />
-
-        <span className={cn(
-          'font-[Fira_Code] font-semibold text-[9px] uppercase tracking-[0.18em] truncate flex-1 transition-colors',
-          open ? 'text-white/60' : 'text-white/20'
-        )}>
+        <div className="w-5 h-5 rounded bg-white/5 flex items-center justify-center">
+          <Icon size={12} className={cn("transition-colors", isDragging ? 'text-primary' : iconColor)} />
+        </div>
+        <span className="font-[Fira_Code] text-[10px] font-bold text-white/50 uppercase tracking-[0.2em] flex-1">
           {label}
         </span>
-
-        {open && headerExtra && (
-          <div className="flex items-center gap-1 shrink-0">{headerExtra}</div>
-        )}
+        {headerExtra && <div className="flex items-center gap-1 shrink-0">{headerExtra}</div>}
       </div>
 
       {/* Body */}
-      {open && (
-        <div className={cn('flex-1 min-h-0 overflow-y-auto', noPad ? '' : 'p-3')}>
-          {children}
-        </div>
-      )}
+      <div className={cn('flex-1 min-h-0 overflow-y-auto custom-scrollbar', noPad ? '' : 'p-3')}>
+        {children}
+      </div>
+
+      {/* Resize Handle */}
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        className="absolute bottom-0 right-0 w-5 h-5 cursor-nwse-resize flex items-center justify-center group/resize resize-handle z-50"
+      >
+        <div className="w-2 h-2 border-r-2 border-b-2 border-white/20 group-hover/resize:border-primary transition-colors" />
+      </div>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// PARTY MINI TRACKER
-// ─────────────────────────────────────────────────────────
-interface PartyPanelProps { members: PartyMember[]; avgLevel: number; onAdd: () => void; onUpdate: (id: string, u: Partial<PartyMember>) => void; onRemove: (id: string) => void; onClose?: () => void; }
+function Panel(props: PanelConfig) {
+  // Legacy support for non-OS views if needed, for now just render as a stationary window or tiling
+  return <div className="panel-glass rounded-xl p-3 h-full overflow-y-auto">{props.children}</div>;
+}
 
-function PartyMiniTracker({ members, avgLevel, onAdd, onUpdate, onRemove, onClose }: PartyPanelProps) {
+// ─────────────────────────────────────────────────────────
+// PARTY MINI TRACKER (Updated for Window system)
+// ─────────────────────────────────────────────────────────
+interface PartyPanelProps {
+  members: PartyMember[];
+  avgLevel: number;
+  onAdd: () => void;
+  onUpdate: (id: string, u: Partial<PartyMember>) => void;
+  onRemove: (id: string) => void;
+  windowProps?: any;
+}
+
+function PartyMiniTracker({ members, avgLevel, onAdd, onUpdate, onRemove, windowProps }: PartyPanelProps) {
   return (
-    <Panel id="party" label={`Party · ${members.length}p · CR ${avgLevel}`} icon={Users}
-      iconColor="text-amber-400" tagColor="bg-amber-400" grow={0.7}
-      onClose={onClose}
-      headerExtra={
-        <button onClick={onAdd} aria-label="Adicionar herói"
-          className="text-muted-foreground hover:text-accent transition-colors p-0.5 rounded">
-          <Plus size={11} />
-        </button>
-      }
+    <Window
+      id="party"
+      label={`Party · ${members.length}p · CR ${avgLevel}`}
+      icon={Users}
+      iconColor="text-amber-400"
+      tagColor="bg-amber-400"
+      headerExtra={<button onClick={onAdd} className="text-muted-foreground hover:text-accent p-0.5"><Plus size={11} /></button>}
+      {...windowProps}
     >
       <div className="space-y-1">
         {members.map(m => (
@@ -246,15 +335,11 @@ function PartyMiniTracker({ members, avgLevel, onAdd, onUpdate, onRemove, onClos
               className="h-6 flex-1 text-[10px] font-semibold bg-black/40 border-white/5 text-white px-2 min-w-0" />
             <Input type="number" value={m.level} onChange={e => onUpdate(m.id, { level: parseInt(e.target.value) || 1 })}
               className="h-6 w-9 text-[10px] text-center font-[Fira_Code] font-bold bg-black/40 border-white/5 text-accent px-1 shrink-0" />
-            <button onClick={() => onRemove(m.id)} aria-label={`Remover ${m.name}`}
-              className="opacity-0 group-hover:opacity-100 text-destructive/60 hover:text-destructive transition-opacity p-0.5 shrink-0">
-              <X size={9} />
-            </button>
+            <button onClick={() => onRemove(m.id)} className="opacity-0 group-hover:opacity-100 text-destructive/60 hover:text-destructive p-0.5"><X size={9} /></button>
           </div>
         ))}
-        {members.length === 0 && <p className="text-[10px] text-muted-foreground/50 italic text-center py-2">Sem heróis.</p>}
       </div>
-    </Panel>
+    </Window>
   );
 }
 
@@ -274,15 +359,73 @@ function ScreenContent() {
   const [isInitializing, setIsInitializing] = useState(true);
   const [globalLoading, setGlobalLoading] = useState(false);
 
-  // New Sidebar State for tiling layout
-  const [activeTools, setActiveTools] = useState<string[]>(['live', 'grimoire', 'party', 'archive']);
+  // Window System State
+  const [windowPositions, setWindowPositions] = useState<Record<string, WindowPosition>>(() => {
+    // Try to load from localStorage
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mestreaju_windows');
+      if (saved) return JSON.parse(saved);
+    }
+    return {
+      'live': { x: 80, y: 20, width: 450, height: 600, zIndex: 10, isMinimized: false, isMaximized: false },
+      'grimoire': { x: 550, y: 20, width: 800, height: 700, zIndex: 10, isMinimized: false, isMaximized: false },
+      'party': { x: 80, y: 640, width: 450, height: 200, zIndex: 10, isMinimized: false, isMaximized: false },
+    };
+  });
+
+  const [activeTools, setActiveTools] = useState<string[]>(['grimoire', 'party', 'archive']);
+  const [maxZ, setMaxZ] = useState(30);
 
   const toggleTool = (toolId: string) => {
-    setActiveTools(current =>
-      current.includes(toolId)
-        ? current.filter(id => id !== toolId)
-        : [...current, toolId]
-    );
+    setActiveTools(current => {
+      const isOpening = !current.includes(toolId);
+      if (isOpening) {
+        // Initialize position if not exists
+        if (!windowPositions[toolId]) {
+          const nextZ = maxZ + 1;
+          setMaxZ(nextZ);
+          setWindowPositions(prev => ({
+            ...prev,
+            [toolId]: {
+              x: 100 + (current.length * 30),
+              y: 100 + (current.length * 30),
+              width: DEFAULT_WINDOW_SIZE.width,
+              height: DEFAULT_WINDOW_SIZE.height,
+              zIndex: nextZ,
+              isMinimized: false,
+              isMaximized: false
+            }
+          }));
+        } else if (windowPositions[toolId].isMinimized) {
+          // Bring to front and restore
+          const nextZ = maxZ + 1;
+          setMaxZ(nextZ);
+          setWindowPositions(prev => ({
+            ...prev,
+            [toolId]: { ...prev[toolId], isMinimized: false, zIndex: nextZ }
+          }));
+          return current;
+        }
+        return [...current, toolId];
+      } else {
+        return current.filter(id => id !== toolId);
+      }
+    });
+  };
+
+  const updateWindow = (id: string, updates: Partial<WindowPosition>) => {
+    setWindowPositions(prev => {
+      const ns = { ...prev, [id]: { ...prev[id], ...updates } };
+      localStorage.setItem('mestreaju_windows', JSON.stringify(ns));
+      return ns;
+    });
+  };
+
+  const focusWindow = (id: string) => {
+    if (windowPositions[id]?.zIndex === maxZ) return;
+    const nextZ = maxZ + 1;
+    setMaxZ(nextZ);
+    updateWindow(id, { zIndex: nextZ });
   };
 
   // ── Firestore ──
@@ -416,24 +559,36 @@ function ScreenContent() {
           <span className="hidden md:inline font-[Fira_Code] text-[8px] uppercase tracking-[0.25em] text-white/20 border-l border-white/10 pl-2.5">DM Screen</span>
         </div>
 
-        {/* Center: World selector chip */}
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center gap-2 h-7 px-3 rounded-lg border border-white/6 bg-white/[0.02] hover:bg-white/[0.05] hover:border-accent/30 transition-colors duration-150 group"
-              >
-                <Globe size={11} className="text-muted-foreground group-hover:text-accent transition-colors" />
-                <span className="font-[Fira_Code] text-[10px] font-semibold text-white/70 group-hover:text-accent transition-colors truncate max-w-[200px]">
-                  {activeSession ? activeSession.title : '— Selecionar Mundo —'}
-                </span>
-                <ChevronDown size={10} className="text-muted-foreground shrink-0" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="bottom" className="text-[10px]">Trocar sessão</TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
+        {/* Center: Contextual Info & Selector */}
+        <div className="flex items-center gap-4">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center gap-2 h-7 px-3 rounded-lg border border-white/6 bg-white/[0.02] hover:bg-white/[0.05] hover:border-accent/30 transition-colors duration-150 group"
+                >
+                  <Globe size={11} className="text-muted-foreground group-hover:text-accent transition-colors" />
+                  <span className="font-[Fira_Code] text-[10px] font-semibold text-white/70 group-hover:text-accent transition-colors truncate max-w-[200px]">
+                    {activeSession ? activeSession.title : '— Selecionar Mundo —'}
+                  </span>
+                  <ChevronDown size={10} className="text-muted-foreground shrink-0" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="text-[10px]">Trocar sessão</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          {activeSession && (
+            <div className="flex items-center gap-3 border-l border-white/10 pl-4 animate-in fade-in slide-in-from-left-2 duration-300">
+              <div className="flex flex-col">
+                <span className="text-[8px] font-bold text-accent uppercase tracking-widest leading-none">Sessão {activeSession.currentPlaySession?.number || activeSession.playSessions?.length + 1 || 1}</span>
+                <span className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">{activeSession.currentPlaySession?.inGameDate || 'Dia 1'}</span>
+              </div>
+              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+            </div>
+          )}
+        </div>
 
         {/* Right: Status + User */}
         <div className="flex items-center gap-3">
@@ -506,131 +661,167 @@ function ScreenContent() {
          * ═══════════════════════════════════════════════════════
          */
         <TooltipProvider>
-          <div className="flex-1 min-h-0 flex flex-col sm:flex-row overflow-hidden relative">
+          <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative">
 
-            {/* ── SIDEBAR TOOLBAR ── */}
-            <div className="w-[60px] flex-col items-center py-4 border-r border-white/5 bg-black/20 gap-4 hidden sm:flex shrink-0 z-10">
-              <div className="flex flex-col gap-2 w-full px-2">
-                {[
-                  { id: 'live', icon: Activity, label: 'Sessão Ativa', color: 'text-rose-400', bg: 'hover:bg-rose-500/10' },
-                  { id: 'narrative', icon: PenTool, label: 'Narrativa', color: 'text-violet-400', bg: 'hover:bg-violet-500/10' },
-                  { id: 'grimoire', icon: BookOpen, label: 'O Grimório', color: 'text-sky-400', bg: 'hover:bg-sky-500/10' },
-                  { id: 'sandbox', icon: Map, label: 'Sandbox', color: 'text-emerald-400', bg: 'hover:bg-emerald-500/10' },
-                  { id: 'consequences', icon: Zap, label: 'Efeitos', color: 'text-yellow-400', bg: 'hover:bg-yellow-500/10' },
-                  { id: 'rules', icon: Book, label: 'Regras', color: 'text-cyan-400', bg: 'hover:bg-cyan-500/10' },
-                  { id: 'summary', icon: Scroll, label: 'Resumo', color: 'text-blue-400', bg: 'hover:bg-blue-500/10' },
-                  { id: 'analysis', icon: Search, label: 'Análise', color: 'text-amber-400', bg: 'hover:bg-amber-500/10' },
-                  { id: 'archive', icon: History, label: 'Crônicas', color: 'text-orange-400', bg: 'hover:bg-orange-500/10' },
-                  { id: 'cartography', icon: MapPin, label: 'Cartografia', color: 'text-lime-400', bg: 'hover:bg-lime-500/10' },
-                  { id: 'party', icon: Users, label: 'Party', color: 'text-orange-400', bg: 'hover:bg-orange-500/10' }
-                ].map((tool) => {
-                  const isActive = activeTools.includes(tool.id);
-                  return (
-                    <Tooltip key={tool.id}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => toggleTool(tool.id)}
-                          className={cn(
-                            'w-full aspect-square rounded-xl flex items-center justify-center transition-all duration-200 relative group',
-                            isActive ? 'bg-white/10 shadow-inner' : `hover:bg-white/5 ${tool.bg}`
-                          )}
-                        >
-                          {isActive && (
-                            <div className={cn("absolute left-0 w-1 h-1/2 rounded-r-full", tool.color.replace('text-', 'bg-'))} />
-                          )}
-                          <tool.icon size={20} className={cn(
-                            'transition-colors duration-200',
-                            isActive ? tool.color : 'text-muted-foreground group-hover:text-white/80'
-                          )} />
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right" className="text-[10px] font-[Fira_Code] uppercase tracking-widest flex items-center gap-2">
-                        {tool.label}
-                        <span className="text-muted-foreground">({isActive ? 'ON' : 'OFF'})</span>
-                      </TooltipContent>
-                    </Tooltip>
-                  );
-                })}
+            {/* ── LEFT FIXED COMMAND CENTER (LIVE SESSION) ── */}
+            <div className="w-[420px] border-r border-white-[0.03] bg-[#050505]/80 backdrop-blur-2xl z-[40] relative flex flex-col shrink-0 hidden lg:flex shadow-[20px_0_50px_-20px_rgba(0,0,0,0.5)]">
+              <div className="h-full flex flex-col w-full px-5 py-4 overflow-hidden">
+                <div className="flex items-center gap-3 mb-5 px-1">
+                  <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shadow-inner">
+                    <Activity size={14} className="text-rose-500 animate-pulse" />
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="font-[Fira_Code] text-[10px] font-bold text-rose-500 uppercase tracking-[0.2em] leading-tight">Painel de Comando</span>
+                    <span className="text-[8px] text-muted-foreground/40 uppercase tracking-widest font-bold">Sessão Ativa</span>
+                  </div>
+                  <div className="h-px bg-gradient-to-r from-rose-500/20 to-transparent flex-1 ml-4" />
+                </div>
+                <div className="flex-1 min-h-0">
+                  <LiveSessionTool {...tp} />
+                </div>
               </div>
             </div>
 
-            {/* ── DYNAMIC WORKSPACE ── */}
-            <div className="flex-1 min-h-0 flex flex-col sm:flex-row gap-1.5 p-1.5 overflow-y-auto sm:overflow-x-auto custom-scrollbar pb-16 sm:pb-1.5">
-              {activeTools.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground/50 space-y-3">
-                  <LayoutDashboard size={40} className="opacity-20" />
-                  <p className="font-[Fira_Code] text-xs uppercase tracking-widest">Nenhum painel ativo</p>
-                </div>
-              ) : (
-                /* Map active tools dynamically.
-                   We render them in the order they were opened (or predefined order, depending on activeTools array).
-                   For better layout, we could split them into columns if there are many, but flex-row wrapping or direct flex-row handles tiling well.
-                   Let's use a standard horizontal flex layout where each pane gets equal/proportional weight.
-                */
-                <>
-                  {activeTools.map((toolId) => {
-                    const renderTool = () => {
-                      switch (toolId) {
-                        case 'live': return (
-                          <Panel key={toolId} id={toolId} label="Sessão Ativa" icon={Activity} iconColor="text-rose-400" tagColor="bg-rose-500" grow={2} noPad onClose={() => toggleTool(toolId)}>
-                            <div className="h-full p-3 overflow-y-auto"><LiveSessionTool {...tp} /></div>
-                          </Panel>
-                        );
-                        case 'narrative': return (
-                          <Panel key={toolId} id={toolId} label="Narrativa & Ideias" icon={PenTool} iconColor="text-violet-400" tagColor="bg-violet-500" grow={1} onClose={() => toggleTool(toolId)}>
-                            <NarrativeGeneratorTool {...tp} />
-                          </Panel>
-                        );
-                        case 'grimoire': return (
-                          <Panel key={toolId} id={toolId} label="O Grimório" icon={BookOpen} iconColor="text-sky-400" tagColor="bg-sky-500" grow={3} noPad onClose={() => toggleTool(toolId)}>
-                            <div className="h-full overflow-y-auto"><WorldGrimoireTool {...tp} /></div>
-                          </Panel>
-                        );
-                        case 'sandbox': return (
-                          <Panel key={toolId} id={toolId} label="Sandbox" icon={Map} iconColor="text-emerald-400" tagColor="bg-emerald-500" grow={1} onClose={() => toggleTool(toolId)}>
-                            <SandboxIdeasTool {...tp} />
-                          </Panel>
-                        );
-                        case 'consequences': return (
-                          <Panel key={toolId} id={toolId} label="Efeitos" icon={Zap} iconColor="text-yellow-400" tagColor="bg-yellow-500" grow={1} onClose={() => toggleTool(toolId)}>
-                            <ConsequencesTool {...tp} />
-                          </Panel>
-                        );
-                        case 'rules': return (
-                          <Panel key={toolId} id={toolId} label="Enciclopédia" icon={Book} iconColor="text-cyan-400" tagColor="bg-cyan-500" grow={2} onClose={() => toggleTool(toolId)}>
-                            <RulesLookupTool {...tp} />
-                          </Panel>
-                        );
-                        case 'summary': return (
-                          <Panel key={toolId} id={toolId} label="Resumo" icon={Scroll} iconColor="text-blue-400" tagColor="bg-blue-500" grow={1} onClose={() => toggleTool(toolId)}>
-                            <SessionSummaryTool {...tp} />
-                          </Panel>
-                        );
-                        case 'analysis': return (
-                          <Panel key={toolId} id={toolId} label="Análise" icon={Search} iconColor="text-amber-400" tagColor="bg-amber-500" grow={0.8} onClose={() => toggleTool(toolId)}>
-                            <ContextAnalysisTool {...tp} />
-                          </Panel>
-                        );
-                        case 'party': return (
-                          <PartyMiniTracker key={toolId} members={party} avgLevel={avgLevel} onAdd={addMember} onUpdate={updateMember} onRemove={removeMember} onClose={() => toggleTool(toolId)} />
-                        );
-                        case 'archive': return (
-                          <Panel key={toolId} id={toolId} label="Crônicas Passadas" icon={History} iconColor="text-orange-400" tagColor="bg-orange-500" grow={1.5} noPad onClose={() => toggleTool(toolId)}>
-                            <div className="h-full overflow-y-auto"><SessionHistoryTool {...tp} /></div>
-                          </Panel>
-                        );
-                        case 'cartography': return (
-                          <Panel key={toolId} id={toolId} label="Cartografia" icon={MapPin} iconColor="text-lime-400" tagColor="bg-lime-500" grow={2} onClose={() => toggleTool(toolId)}>
-                            <CartographyTool {...tp} />
-                          </Panel>
-                        );
-                        default: return null;
-                      }
-                    };
-                    return renderTool();
+            {/* ── MAIN WORKSPACE AREA ── */}
+            <div
+              className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-cover bg-center"
+              style={{
+                backgroundImage: 'url("file:///home/edsoncantuaria/.gemini/antigravity/brain/1553a81b-a170-4091-9cd7-fea1907c66e8/mestreaju_desktop_bg_1772105146963.png")',
+                backgroundColor: '#050505'
+              }}
+            >
+              <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
+
+              {/* ── OS DESKTOP ── */}
+              <div className="flex-1 min-h-0 relative overflow-hidden">
+                {activeTools.length === 0 && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 space-y-3">
+                    <LayoutDashboard size={48} className="opacity-10" />
+                    <p className="font-[Fira_Code] text-[10px] uppercase tracking-[0.3em]">Ambiente de Trabalho Vazio</p>
+                  </div>
+                )}
+
+                {activeTools.map((toolId) => {
+                  const pos = windowPositions[toolId] || { x: 100, y: 100, width: 450, height: 500, zIndex: 10 };
+                  const wp = {
+                    x: pos.x, y: pos.y, width: pos.width, height: pos.height, zIndex: pos.zIndex,
+                    minimized: pos.isMinimized,
+                    onMove: (nx: number, ny: number) => updateWindow(toolId, { x: nx, y: ny }),
+                    onResize: (nw: number, nh: number) => updateWindow(toolId, { width: nw, height: nh }),
+                    onFocus: () => focusWindow(toolId),
+                    onToggleMinimize: () => updateWindow(toolId, { isMinimized: !pos.isMinimized }),
+                    onClose: () => toggleTool(toolId)
+                  };
+
+                  switch (toolId) {
+                    case 'narrative': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Narrativa & Ideias" icon={PenTool} iconColor="text-violet-400" tagColor="bg-violet-500">
+                        <NarrativeGeneratorTool {...tp} />
+                      </Window>
+                    );
+                    case 'grimoire': return (
+                      <Window key={toolId} {...wp} id={toolId} label="O Grimório" icon={BookOpen} iconColor="text-sky-400" tagColor="bg-sky-500" noPad>
+                        <WorldGrimoireTool {...tp} />
+                      </Window>
+                    );
+                    case 'sandbox': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Sandbox" icon={Map} iconColor="text-emerald-400" tagColor="bg-emerald-500">
+                        <SandboxIdeasTool {...tp} />
+                      </Window>
+                    );
+                    case 'consequences': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Efeitos" icon={Zap} iconColor="text-yellow-400" tagColor="bg-yellow-500">
+                        <ConsequencesTool {...tp} />
+                      </Window>
+                    );
+                    case 'rules': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Enciclopédia" icon={Book} iconColor="text-cyan-400" tagColor="bg-cyan-500">
+                        <RulesLookupTool {...tp} />
+                      </Window>
+                    );
+                    case 'summary': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Resumo" icon={Scroll} iconColor="text-blue-400" tagColor="bg-blue-500">
+                        <SessionSummaryTool {...tp} />
+                      </Window>
+                    );
+                    case 'analysis': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Análise" icon={Search} iconColor="text-amber-400" tagColor="bg-amber-500">
+                        <ContextAnalysisTool {...tp} />
+                      </Window>
+                    );
+                    case 'archive': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Atas das Crônicas" icon={History} iconColor="text-orange-400" tagColor="bg-orange-500">
+                        <SessionHistoryTool {...tp} />
+                      </Window>
+                    );
+                    case 'cartography': return (
+                      <Window key={toolId} {...wp} id={toolId} label="Cartografia" icon={MapPin} iconColor="text-lime-400" tagColor="bg-lime-500" noPad>
+                        <CartographyTool {...tp} />
+                      </Window>
+                    );
+                    case 'party': return (
+                      <PartyMiniTracker key={toolId} {...tp} members={party} avgLevel={avgLevel} onAdd={addMember} onUpdate={updateMember} onRemove={removeMember} windowProps={wp} />
+                    );
+                    default: return null;
+                  }
+                })}
+              </div>
+
+              {/* ── BOTTOM DOCK (HORIZONTAL TOOLBAR) ── */}
+              <div className="h-20 px-8 flex items-center justify-center pb-4 z-[60] shrink-0 pointer-events-none">
+                <div className="h-14 px-5 rounded-2xl border border-white/10 bg-[#0a0a0a]/60 backdrop-blur-xl flex items-center gap-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto transition-all duration-500 hover:bg-[#0a0a0a]/80 hover:border-white/20">
+                  {[
+                    { id: 'grimoire', icon: BookOpen, label: 'Grimório', color: 'text-sky-400' },
+                    { id: 'narrative', icon: PenTool, label: 'Narrativa', color: 'text-violet-400' },
+                    { id: 'sandbox', icon: Map, label: 'Sandbox', color: 'text-emerald-400' },
+                    { id: 'consequences', icon: Zap, label: 'Efeitos', color: 'text-yellow-400' },
+                    { id: 'rules', icon: Book, label: 'Regras', color: 'text-cyan-400' },
+                    { id: 'summary', icon: Scroll, label: 'Resumo', color: 'text-blue-400' },
+                    { id: 'analysis', icon: Search, label: 'Análise', color: 'text-amber-400' },
+                    { id: 'archive', icon: History, label: 'Crônicas', color: 'text-orange-400' },
+                    { id: 'cartography', icon: MapPin, label: 'Mapas', color: 'text-lime-400' },
+                    { id: 'party', icon: Users, label: 'Party', color: 'text-orange-400' }
+                  ].map((tool) => {
+                    const isActive = activeTools.includes(tool.id);
+                    const isMinimized = windowPositions[tool.id]?.isMinimized;
+                    return (
+                      <Tooltip key={tool.id}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() => toggleTool(tool.id)}
+                            className={cn(
+                              "relative group p-2.5 rounded-xl transition-all duration-300 flex items-center justify-center",
+                              isActive
+                                ? "bg-white/10 scale-110 shadow-lg"
+                                : "hover:bg-white/5 hover:scale-105 opacity-60 hover:opacity-100"
+                            )}
+                          >
+                            <tool.icon
+                              size={20}
+                              className={cn(
+                                "transition-colors duration-300",
+                                isActive && !isMinimized ? tool.color : "text-white/70 group-hover:text-white"
+                              )}
+                            />
+
+                            {/* Indicator Dot */}
+                            {isActive && (
+                              <div className={cn(
+                                "absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 rounded-full bg-accent transition-all duration-300",
+                                isMinimized ? "w-1 opacity-40" : "w-3 shadow-[0_0_8px_rgba(var(--accent-rgb),0.6)]"
+                              )} />
+                            )}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" sideOffset={12} className="text-[10px] font-[Fira_Code] uppercase tracking-widest flex items-center gap-2 border-white/10 bg-black/90">
+                          {tool.label}
+                          <span className="text-muted-foreground/50">[{isActive ? (isMinimized ? 'MINIMIZED' : 'ACTIVE') : 'CLOSED'}]</span>
+                        </TooltipContent>
+                      </Tooltip>
+                    );
                   })}
-                </>
-              )}
+                </div>
+              </div>
             </div>
 
             {/* ── MOBILE BOTTOM NAVIGATION ── */}
@@ -662,7 +853,7 @@ function ScreenContent() {
 
       {/* ──────── WORLD SELECTION MODAL ──────── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="sm:max-w-[640px] bg-card/95 backdrop-blur-xl border-white/8 p-0 overflow-hidden shadow-2xl">
+        <DialogContent className="sm:max-w-[640px] bg-card/95 backdrop-blur-xl border-white/8 p-0 overflow-hidden shadow-2xl text-foreground">
           {/* Accent gradient top bar */}
           <div className="h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent w-full" />
           <div className="p-7">
@@ -738,13 +929,12 @@ function ScreenContent() {
           </div>
         </DialogContent>
       </Dialog>
-
-    </div>
+    </div >
   );
 }
 
 // ─────────────────────────────────────────────────────────
-// ROOT
+// ROOT — Firebase Wrapper
 // ─────────────────────────────────────────────────────────
 export default function ScreenDungeonMaster() {
   return (

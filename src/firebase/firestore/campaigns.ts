@@ -34,6 +34,9 @@ export async function saveGeneratedWorldRegion(
         activeConflicts: data.activeConflicts,
         adventureHooks: data.adventureHooks,
         worldSecrets: data.worldSecrets,
+        rumorTable: data.rumorTable || [],
+        thematicEncounters: data.thematicEncounters || [],
+        lootPatterns: data.lootPatterns || [],
     });
 
     // 2. Salvar Factions em subcoleção
@@ -68,6 +71,20 @@ export async function saveGeneratedWorldRegion(
             createdAt: serverTimestamp(),
         });
     });
+
+    // 5. Salvar Quests em subcoleção
+    if (data.quests) {
+        data.quests.forEach((quest) => {
+            const questRef = doc(collection(firestore, `users/${userId}/campaigns/${campaignId}/quests`));
+            batch.set(questRef, {
+                ...quest,
+                id: questRef.id,
+                ownerId: userId,
+                createdAt: serverTimestamp(),
+                status: quest.status || 'active'
+            });
+        });
+    }
 
     // Commit em lote (todas as operações ou nenhuma)
     await batch.commit();

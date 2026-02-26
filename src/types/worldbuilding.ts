@@ -7,6 +7,8 @@ export const FactionSchema = z.object({
   method: z.string().describe('Métodos de atuação'),
   enemies: z.array(z.string()).describe('Inimigos declarados ou ocultos'),
   powerSource: z.string().describe('Fonte do poder da facção (recursos, magia, influência, etc)'),
+  hq: z.string().optional().describe('Sede ou base de operações'),
+  assets: z.array(z.string()).optional().describe('Recursos específicos (frotas, espiões, artefatos)'),
   sixMonthPlan: z.string().describe('O que a facção planeja alcançar em 6 meses'),
   fiveYearPlan: z.string().describe('O grande plano de 5 anos da facção'),
 });
@@ -22,6 +24,29 @@ export const NpcSchema = z.object({
   controlledResource: z.string().describe('Recurso que o NPC controla (informação, exército, dinheiro, etc)'),
   relationships: z.array(z.string()).describe('Relação com outros NPCs ou facções'),
   consequenceOfDeath: z.string().describe('O que acontece na região se o NPC morrer ou sumir'),
+  statBlock: z.object({
+    alignment: z.string(),
+    ac: z.number(),
+    hp: z.number(),
+    speed: z.string(),
+    stats: z.object({
+      str: z.number(),
+      dex: z.number(),
+      con: z.number(),
+      int: z.number(),
+      wis: z.number(),
+      cha: z.number(),
+    }),
+    saves: z.array(z.string()).optional(),
+    skills: z.array(z.string()).optional(),
+    senses: z.string().optional(),
+    languages: z.array(z.string()).optional(),
+    cr: z.string(),
+    traits: z.array(z.object({ name: z.string(), desc: z.string() })).describe('Habilidades passivas/especiais'),
+    actions: z.array(z.object({ name: z.string(), desc: z.string() })).describe('Ações de combate'),
+    reactions: z.array(z.object({ name: z.string(), desc: z.string() })).optional(),
+    legendaryActions: z.array(z.object({ name: z.string(), desc: z.string() })).optional(),
+  }).optional().describe('Stat-block para D&D 5e'),
 });
 export type NpcData = z.infer<typeof NpcSchema>;
 
@@ -32,8 +57,22 @@ export const LocationSchema = z.object({
   description: z.string().describe('Descrição visual e sensorial do local'),
   connections: z.array(z.string()).describe('Como se conecta a outros pontos (estradas, rios, portais)'),
   keyFeatures: z.array(z.string()).describe('Características marcantes do local'),
+  hazards: z.array(z.object({ name: z.string(), desc: z.string() })).optional().describe('Perigos ambientais, armadilhas ou Lair Actions'),
+  regionalEffects: z.array(z.string()).optional().describe('Efeitos regionais mágicos ou geográficos do local'),
 });
 export type LocationData = z.infer<typeof LocationSchema>;
+
+export const QuestSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().describe('Título da missão/aventura'),
+  hook: z.string().describe('O gancho inicial para os jogadores'),
+  objective: z.string().describe('O objetivo principal (o que eles precisam fazer)'),
+  status: z.enum(['active', 'completed', 'failed']).default('active').describe('Estado atual da missão'),
+  keyNpcs: z.array(z.string()).describe('Nomes dos NPCs chaves envolvidos'),
+  keyLocations: z.array(z.string()).describe('Nomes dos locais chaves envolvidos'),
+  rewards: z.array(z.string()).describe('Recompensas e tesouros específicos desta missão'),
+});
+export type QuestData = z.infer<typeof QuestSchema>;
 
 export const RegionDataSchema = z.object({
   overview: z.object({
@@ -68,12 +107,33 @@ export const RegionDataSchema = z.object({
   adventureHooks: z.array(z.string()).describe('Ganchos de aventura ativos ligados à economia ou política'),
   worldSecrets: z.array(z.string()).describe('Segredos absolutos do mundo (DMs only)'),
 
+  rumorTable: z.array(z.object({
+    rumor: z.string(),
+    truthLevel: z.enum(['true', 'false', 'partial']),
+    source: z.string().describe('Quem contou ou onde foi ouvido')
+  })).describe('Tabela d10 de boatos locais'),
+
+  thematicEncounters: z.array(z.object({
+    title: z.string(),
+    description: z.string(),
+    trigger: z.string().describe('Condição ou local onde ocorre'),
+    combatStats: z.string().optional().describe('Sugestão de monstros ou NPCs do SRD')
+  })).describe('Encontros aleatórios "assinados" pelo tema do mundo'),
+
+  lootPatterns: z.array(z.object({
+    category: z.string().describe('Tipo de loot (ex: Arcano, Urbano, Deserto)'),
+    items: z.array(z.string()).describe('Exemplos de itens de loot característicos')
+  })).describe('Padrões de tesouro e recompensas da região'),
+
   factions: z.array(FactionSchema).describe('Principais facções operando na região'),
   npcs: z.array(NpcSchema).describe('Os NPCs chave (atores políticos, heróis, antagonistas)'),
   locations: z.array(LocationSchema).describe('Pontos de interesse da região'),
+  quests: z.array(QuestSchema).describe('Missões iniciais que conectam NPCs e Localidades'),
 });
 
 export type RegionWorldbuildingData = z.infer<typeof RegionDataSchema>;
+
+// ... rest of the file
 
 // ── Cartography Schemas ──
 

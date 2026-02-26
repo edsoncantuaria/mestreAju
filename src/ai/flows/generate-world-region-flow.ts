@@ -12,6 +12,7 @@ const GenerateWorldRegionInputSchema = z.object({
    biome: z.string().optional().describe('Bioma ou tema geográfico desejado (ex: Gélido, Estepe, Floresta Sombria).'),
    additionalContext: z.string().optional().describe('Diretrizes extras do Mestre (ex: "Quero uma guerra civil em andamento com dois pretendentes ao trono").'),
    expandLayers: z.boolean().optional().describe('MODO PROFUNDO: aprofunda economia, mapa político e simula 1 ano de evolução do mundo.'),
+   narrativeStyle: z.enum(['minimalist', 'immersive', 'theatrical']).optional().describe('Estilo de narração: minimalist (direto), immersive (sensorial), theatrical (dramático).'),
 });
 export type GenerateWorldRegionInput = z.infer<typeof GenerateWorldRegionInputSchema>;
 export type GenerateWorldRegionOutput = z.infer<typeof RegionDataSchema>;
@@ -60,13 +61,13 @@ ESTRUTURA OBRIGATÓRIA:
 (Deuses D&D 5e predominantes e a influência real na política/cultura. Conflitos entre cultos).
 
 ## 🗺 Pontos de Interesse
-(Capital, cidades, vilas, ruínas, locais mágicos, rotas. Descreva as conexões operacionais entre eles).
+(Capital, cidades, vilas, ruínas, locais mágicos, rotas. Para cada local, defina todos os campos do LocationSchema, incluindo obrigatoriamente Efeitos Regionais de D&D 5e e Perigos/Hazards se aplicável).
 
 ## 🕴 NPCs Principais
-(Mínimo 5: Gobernante, Líder Religioso, Líder Clandestino, Herói Popular, Antagonista Oculto. Para CADA UM, defina: Objetivo Público, Objetivo Secreto, Medo, Recurso que controla, O que acontece se morrer, Relações).
+(Mínimo 5: Gobernante, Líder Religioso, Líder Clandestino, Herói Popular, Antagonista Oculto. Para CADA UM, defina todos os campos do NpcSchema, incluindo OBJETIVAMENTE um StatBlock de D&D 5e com Atributos, AC, HP, CR, Habilidades Especiais e Ações de Combate).
 
 ## 🛡 Facções
-(Mínimo 3. Para cada: Ideologia, Método, Inimigos, Fonte de poder, Plano de 6 meses, Plano de 5 anos).
+(Mínimo 3. Para cada: Ideologia, Método, Inimigos, Fonte de poder, Sede (HQ), Recursos Específicos (Frotas, Espiões, etc.), Plano de 6 meses, Plano de 5 anos).
 
 ## 📆 Calendário
 (Nome, divisão do ano, feriados, evento profético marcado no calendário).
@@ -79,6 +80,18 @@ ESTRUTURA OBRIGATÓRIA:
 
 ## 🧨 Segredos Ocultos do Mundo (não revelados aos jogadores)
 (Verdades estruturais que mudariam tudo. Quem sabe e por que cala).
+
+## 🗣 Tabela de Boatos (d10)
+(Gere 10 boatos. Use o campo truthLevel para definir se o boato é Verdadeiro, Falso ou Parcial. Defina a fonte de onde o boato é ouvido).
+
+## 🎲 Encontros Ativos
+(Mínimo 5 encontros rápidos e "assinados" pelo tom do mundo. Defina o gatilho, a cena e sugestões de monstros/fichas do SRD).
+
+## 💰 Padrões de Recompensa (Loot)
+(Como é o tesouro nesta região? O que é comum encontrar em masmorras ou como recompensa? Liste itens temáticos).
+
+## 📜 Missões Iniciais (Quests)
+(Gere EXATAMENTE 3 missões estruturadas que sirvam de ponto de partida. Cada missão DEVE obrigatoriamente referenciar pelo menos um NPC e uma Localidade gerados acima, criando um "Grafo de Conexão". Defina o gancho, o objetivo principal e as recompensas específicas).
 
 {{#if biome}}
 **Bioma ou Tema Geográfico:**
@@ -99,6 +112,14 @@ ESTRUTURA OBRIGATÓRIA:
 {{/if}}
 
 Responda EXCLUSIVAMENTE em Português Brasileiro.
+
+{{#if narrativeStyle}}
+**ESTILO NARRATIVO REQUERIDO: {{narrativeStyle}}**
+- Se "minimalist": Descrições curtas, factuais e diretas. Foque no que é, não no que parece.
+- Se "immersive": Descrições ricas, sensoriais (cheiro, som, luz) e atmosféricas.
+- Se "theatrical": Foque no drama, impacto emocional e frases de efeito.
+{{/if}}
+
 Sua resposta DEVE ser um objeto JSON que estritamente adere ao esquema de saída.`,
 });
 
