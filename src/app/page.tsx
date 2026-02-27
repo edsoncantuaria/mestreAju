@@ -6,7 +6,8 @@ import {
   Activity, BookOpen, Sparkles, Users, Shield, Book,
   FolderOpen, ChevronRight, Loader2, Mail, Lock, LogOut,
   Cloud, History, Globe, ChevronDown, LayoutDashboard,
-  Minus, Maximize2, GripHorizontal, MapPin, ChevronUp
+  Minus, Maximize2, GripHorizontal, MapPin, ChevronUp,
+  ChevronLeft, Trash2
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -31,7 +32,7 @@ import {
   initiateEmailSignIn, initiateEmailSignUp,
   initiateAnonymousSignIn, useDoc
 } from '@/firebase';
-import { collection, query, orderBy, doc, updateDoc, setDoc } from 'firebase/firestore';
+import { collection, query, orderBy, doc, updateDoc, setDoc, deleteDoc } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
 
@@ -173,6 +174,16 @@ interface WindowPosition {
 
 const DEFAULT_WINDOW_SIZE = { width: 450, height: 500 };
 
+/**
+ * Extracts all numbers from a string and returns their sum.
+ * Used for summing multiclass levels like "Guerreiro 1 Mago 2" -> 3.
+ */
+function parseTotalLevel(classString: string): number {
+  const numbers = classString.match(/\d+/g);
+  if (!numbers) return 1;
+  return numbers.reduce((sum, n) => sum + parseInt(n), 0);
+}
+
 function Window({
   id, label, icon: Icon, iconColor, tagColor, children, headerExtra, noPad,
   x = 100, y = 100, width = 450, height = 500, zIndex = 10,
@@ -182,6 +193,7 @@ function Window({
   const [isResizing, setIsResizing] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [resizeStart, setResizeStart] = useState({ x: 0, y: 0, w: 0, h: 0 });
+  const windowRef = React.useRef<HTMLDivElement>(null);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     const target = e.target as HTMLElement;
@@ -205,7 +217,22 @@ function Window({
 
   const handlePointerMove = (e: React.PointerEvent) => {
     if (isDragging) {
-      onMove?.(e.clientX - dragOffset.x, e.clientY - dragOffset.y);
+      const parent = windowRef.current?.parentElement;
+      if (parent) {
+        const parentRect = parent.getBoundingClientRect();
+        // Calculate new position
+        const nx = e.clientX - dragOffset.x;
+        const ny = e.clientY - dragOffset.y;
+
+        // Clamp bounds: Ensure window stays within workspace
+        // Allow a small 'off-screen' buffer if desired, but here we clamp strictly
+        const clampedX = Math.max(0, Math.min(nx, parentRect.width - width));
+        const clampedY = Math.max(0, Math.min(ny, parentRect.height - 40)); // Keep header visible at least
+
+        onMove?.(clampedX, clampedY);
+      } else {
+        onMove?.(e.clientX - dragOffset.x, e.clientY - dragOffset.y);
+      }
     } else if (isResizing) {
       const dw = e.clientX - resizeStart.x;
       const dh = e.clientY - resizeStart.y;
@@ -224,6 +251,7 @@ function Window({
   return (
     <div
       id={id}
+      ref={windowRef}
       onPointerDown={e => !isDragging && onFocus?.()}
       className={cn(
         'panel-glass rounded-xl flex flex-col overflow-hidden absolute transition-all duration-300 select-none shadow-2xl',
@@ -328,16 +356,52 @@ function PartyMiniTracker({ members, avgLevel, onAdd, onUpdate, onRemove, window
       headerExtra={<button onClick={onAdd} className="text-muted-foreground hover:text-accent p-0.5"><Plus size={11} /></button>}
       {...windowProps}
     >
-      <div className="space-y-1">
-        {members.map(m => (
-          <div key={m.id} className="flex items-center gap-1.5 group">
-            <Input value={m.name} onChange={e => onUpdate(m.id, { name: e.target.value })}
-              className="h-6 flex-1 text-[10px] font-semibold bg-black/40 border-white/5 text-white px-2 min-w-0" />
-            <Input type="number" value={m.level} onChange={e => onUpdate(m.id, { level: parseInt(e.target.value) || 1 })}
-              className="h-6 w-9 text-[10px] text-center font-[Fira_Code] font-bold bg-black/40 border-white/5 text-accent px-1 shrink-0" />
-            <button onClick={() => onRemove(m.id)} className="opacity-0 group-hover:opacity-100 text-destructive/60 hover:text-destructive p-0.5"><X size={9} /></button>
-          </div>
-        ))}
+      <div className="space-y-3">
+        {members.map(m => {
+          const totalLevel = parseTotalLevel(m.class);
+          return (
+            <div key={m.id} className="flex flex-col gap-2 p-2 rounded-lg bg-white/[0.02] border border-white/5 relative group transition-colors hover:bg-white/[0.04]">
+              <div className="flex items-center gap-2">
+                <Input
+                  value={m.name}
+                  onChange={e => onUpdate(m.id, { name: e.target.value })}
+                  placeholder="Nome do Herói"
+                  className="h-7 flex-1 text-[11px] font-bold bg-black/40 border-white/5 text-sky-400 px-2 min-w-0"
+                />
+                <div className="flex items-center gap-1.5 bg-primary/10 rounded-md px-2 h-7 border border-primary/20 shadow-[0_0_10px_rgba(var(--primary),0.1)] shrink-0">
+                  <Sparkles size={10} className="text-primary animate-pulse" />
+                  <span className="text-[10px] font-black font-[Fira_Code] text-primary uppercase tracking-tighter">NÍVEL {totalLevel}</span>
+                </div>
+                <button
+                  onClick={() => onRemove(m.id)}
+                  className="opacity-0 group-hover:opacity-100 text-destructive/40 hover:text-destructive p-1 transition-all"
+                >
+                  <X size={12} />
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="relative">
+                  <Input
+                    value={m.race}
+                    onChange={e => onUpdate(m.id, { race: e.target.value })}
+                    placeholder="Raça"
+                    className="h-6 text-[9px] bg-black/40 border-white/5 text-white/70 px-2 pl-6"
+                  />
+                  <Shield size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/30" />
+                </div>
+                <div className="relative">
+                  <Input
+                    value={m.class}
+                    onChange={e => onUpdate(m.id, { class: e.target.value })}
+                    placeholder="Ex: Guerreiro 1 Mago 2"
+                    className="h-6 text-[9px] bg-black/40 border-white/5 text-white/70 px-2 pl-6"
+                  />
+                  <Sword size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/30" />
+                </div>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </Window>
   );
@@ -356,8 +420,33 @@ function ScreenContent() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
+
+  const selectSession = (session: any) => {
+    setActiveSessionId(session.id);
+    localStorage.setItem('mestreaju_active_session_id', session.id);
+    if (db && user) setDoc(doc(db, 'users', user.uid), { lastActiveSessionId: session.id, id: user.uid }, { merge: true });
+    setIsModalOpen(false);
+    setShowNewForm(false);
+    toast({ title: 'Mundo ativo', description: `"${session.title}"` });
+  };
+
+  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string, title: string) => {
+    e.stopPropagation();
+    if (!user) return;
+    if (confirm(`Tem certeza que deseja apagar a crônica "${title}"? Todos os personagens e locais associados serão perdidos. Esta ação não pode ser desfeita.`)) {
+      try {
+        await deleteDoc(doc(db, `users/${user.uid}/campaigns/${sessionId}`));
+        toast({ title: "Crônica Apagada", description: `A crônica "${title}" foi removida do arquivo.` });
+      } catch (error) {
+        console.error('Error deleting session:', error);
+        toast({ variant: "destructive", title: "Erro", description: "Falha ao apagar crônica." });
+      }
+    }
+  };
+
   const [isInitializing, setIsInitializing] = useState(true);
   const [globalLoading, setGlobalLoading] = useState(false);
+  const [isLiveSessionCollapsed, setIsLiveSessionCollapsed] = useState(false);
 
   // Window System State
   const [windowPositions, setWindowPositions] = useState<Record<string, WindowPosition>>(() => {
@@ -373,7 +462,13 @@ function ScreenContent() {
     };
   });
 
-  const [activeTools, setActiveTools] = useState<string[]>(['grimoire', 'party', 'archive']);
+  const [activeTools, setActiveTools] = useState<string[]>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mestreaju_active_tools');
+      if (saved) return JSON.parse(saved);
+    }
+    return ['grimoire', 'party', 'archive'];
+  });
   const [maxZ, setMaxZ] = useState(30);
 
   const toggleTool = (toolId: string) => {
@@ -416,7 +511,6 @@ function ScreenContent() {
   const updateWindow = (id: string, updates: Partial<WindowPosition>) => {
     setWindowPositions(prev => {
       const ns = { ...prev, [id]: { ...prev[id], ...updates } };
-      localStorage.setItem('mestreaju_windows', JSON.stringify(ns));
       return ns;
     });
   };
@@ -448,6 +542,14 @@ function ScreenContent() {
   useEffect(() => { if (activeSession?.partyMembers) setParty(activeSession.partyMembers); }, [activeSession?.id]);
 
   useEffect(() => {
+    localStorage.setItem('mestreaju_active_tools', JSON.stringify(activeTools));
+  }, [activeTools]);
+
+  useEffect(() => {
+    localStorage.setItem('mestreaju_windows', JSON.stringify(windowPositions));
+  }, [windowPositions]);
+
+  useEffect(() => {
     if (!isInitializing || isUserLoading) return;
     if (user && !loadingSessions && !loadingProfile && sessions !== null) {
       const savedId = userProfile?.lastActiveSessionId || localStorage.getItem('mestreaju_active_session_id');
@@ -462,14 +564,6 @@ function ScreenContent() {
   }, [user, isUserLoading, loadingSessions, loadingProfile, sessions, userProfile, isInitializing]);
 
   // ── Handlers ──
-  const selectSession = (session: any) => {
-    setActiveSessionId(session.id);
-    localStorage.setItem('mestreaju_active_session_id', session.id);
-    if (db && user) setDoc(doc(db, 'users', user.uid), { lastActiveSessionId: session.id, id: user.uid }, { merge: true });
-    setIsModalOpen(false); setShowNewForm(false);
-    toast({ title: 'Mundo ativo', description: `"${session.title}"` });
-  };
-
   const handleContextAction = async (targetToolId: string, data: any) => {
     if (!db || !user || !activeSessionId) return;
 
@@ -514,10 +608,10 @@ function ScreenContent() {
       updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`), { partyMembers: p });
   };
 
-  const addMember = () => { const p = [...party, { id: Date.now().toString(), name: `Herói ${party.length + 1}`, level: 1, race: 'Humano', class: 'Guerreiro' }]; setParty(p); persistParty(p); };
+  const addMember = () => { const p = [...party, { id: Date.now().toString(), name: '', level: 1, race: '', class: '' }]; setParty(p); persistParty(p); };
   const updateMember = (id: string, u: Partial<PartyMember>) => { const p = party.map(m => m.id === id ? { ...m, ...u } : m); setParty(p); persistParty(p); };
   const removeMember = (id: string) => { if (party.length > 1) { const p = party.filter(m => m.id !== id); setParty(p); persistParty(p); } };
-  const avgLevel = party.length ? Math.round(party.reduce((a, m) => a + m.level, 0) / party.length) : 1;
+  const avgLevel = party.length ? Math.round(party.reduce((a, m) => a + parseTotalLevel(m.class), 0) / party.length) : 1;
 
   // ── Loading / Auth ──
   if (isUserLoading || (user && isInitializing)) {
@@ -664,8 +758,13 @@ function ScreenContent() {
           <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative">
 
             {/* ── LEFT FIXED COMMAND CENTER (LIVE SESSION) ── */}
-            <div className="w-[420px] border-r border-white-[0.03] bg-[#050505]/80 backdrop-blur-2xl z-[40] relative flex flex-col shrink-0 hidden lg:flex shadow-[20px_0_50px_-20px_rgba(0,0,0,0.5)]">
-              <div className="h-full flex flex-col w-full px-5 py-4 overflow-hidden">
+            <div
+              className={cn(
+                "border-r border-white-[0.03] bg-[#050505]/80 backdrop-blur-2xl z-[40] relative flex flex-col shrink-0 hidden lg:flex shadow-[20px_0_50px_-20px_rgba(0,0,0,0.5)] transition-all duration-500 ease-in-out overflow-hidden",
+                isLiveSessionCollapsed ? "w-0 opacity-0" : "w-[420px] opacity-100"
+              )}
+            >
+              <div className="h-full flex flex-col w-[420px] px-5 py-4 overflow-hidden">
                 <div className="flex items-center gap-3 mb-5 px-1">
                   <div className="w-8 h-8 rounded-lg bg-rose-500/10 border border-rose-500/20 flex items-center justify-center shadow-inner">
                     <Activity size={14} className="text-rose-500 animate-pulse" />
@@ -681,6 +780,18 @@ function ScreenContent() {
                 </div>
               </div>
             </div>
+
+            {/* ── SIDEBAR TOGGLE BUTTON ── */}
+            <button
+              onClick={() => setIsLiveSessionCollapsed(!isLiveSessionCollapsed)}
+              className={cn(
+                "absolute left-0 top-1/2 -translate-y-1/2 z-[100] w-5 h-12 bg-[#0a0a0a]/80 border border-white/10 border-l-0 rounded-r-lg flex items-center justify-center text-muted-foreground hover:text-accent hover:bg-black transition-all duration-300 shadow-xl",
+                isLiveSessionCollapsed ? "translate-x-0" : "translate-x-[420px]"
+              )}
+              title={isLiveSessionCollapsed ? "Expandir Painel" : "Recolher Painel"}
+            >
+              {isLiveSessionCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
 
             {/* ── MAIN WORKSPACE AREA ── */}
             <div
@@ -905,19 +1016,28 @@ function ScreenContent() {
                       </div>
                     ) : sessions && sessions.length > 0 ? (
                       sessions.map((s: any) => (
-                        <button key={s.id} onClick={() => selectSession(s)}
-                          className="w-full p-3.5 rounded-xl panel-glass hover:border-accent/25 transition-colors duration-150 text-left flex items-center gap-3.5 group cursor-pointer">
-                          <div className="w-9 h-9 rounded-lg bg-accent/8 border border-accent/15 flex items-center justify-center shrink-0 group-hover:bg-accent/15 transition-colors">
-                            <Globe size={16} className="text-accent/60 group-hover:text-accent transition-colors" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-[Fira_Code] font-semibold text-sm text-white/80 group-hover:text-accent transition-colors truncate">{s.title}</p>
-                            <p className="text-[9px] text-muted-foreground/50 mt-0.5">
-                              {s.dateLastModified ? new Date(s.dateLastModified).toLocaleDateString('pt-BR') : '—'}
-                            </p>
-                          </div>
-                          <ChevronRight size={13} className="text-muted-foreground/40 group-hover:text-accent shrink-0 transition-colors" />
-                        </button>
+                        <div key={s.id} className="relative group">
+                          <button onClick={() => selectSession(s)}
+                            className="w-full p-3.5 rounded-xl panel-glass hover:border-accent/25 transition-colors duration-150 text-left flex items-center gap-3.5 cursor-pointer pr-10">
+                            <div className="w-9 h-9 rounded-lg bg-accent/8 border border-accent/15 flex items-center justify-center shrink-0 group-hover:bg-accent/15 transition-colors">
+                              <Globe size={16} className="text-accent/60 group-hover:text-accent transition-colors" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-[Fira_Code] font-semibold text-sm text-white/80 group-hover:text-accent transition-colors truncate">{s.title}</p>
+                              <p className="text-[9px] text-muted-foreground/50 mt-0.5">
+                                {s.dateLastModified ? new Date(s.dateLastModified).toLocaleDateString('pt-BR') : '—'}
+                              </p>
+                            </div>
+                            <ChevronRight size={13} className="text-muted-foreground/40 group-hover:text-accent shrink-0 transition-colors" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteSession(e, s.id, s.title)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg text-muted-foreground/40 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all duration-200"
+                            title="Apagar Crônica"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       ))
                     ) : (
                       <p className="text-center text-xs text-muted-foreground/40 italic py-10">Nenhuma crônica criada ainda.</p>

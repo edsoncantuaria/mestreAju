@@ -61,6 +61,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { prepareSession, type PrepareSessionOutput } from '@/ai/flows/prepare-session-flow';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -81,7 +82,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'dawn', label: 'Alvorecer dos Deuses', desc: 'Mundo jovem, deuses caminham entre mortais. Magia bruta e selvagem.', icon: Sparkles },
       { id: 'golden', label: 'Era de Ouro', desc: 'Impérios magníficos no auge. Magia é ciência e arte.', icon: Crown },
-      { id: 'echoes', label: 'Ecos do Passado', desc: 'Civilizações em ruínas sobre os escombros de impérios antigos.', icon: History }
+      { id: 'echoes', label: 'Ecos do Passado', desc: 'Civilizações em ruínas sobre os escombros de impérios antigos.', icon: History },
+      { id: 'dystopian', label: 'Era da Decadência', desc: 'Recursos escassos, reinos caindo e a esperança se apagando.', icon: Skull },
+      { id: 'steampunk', label: 'Revolução de Éter', desc: 'Avanço tecnológico movido por magia. Dirigíveis e engrenagens.', icon: Cpu },
+      { id: 'cosmic', label: 'Alinhamento Astral', desc: 'O mundo está se fundindo com outros planos de existência.', icon: Globe }
     ]
   },
   {
@@ -91,7 +95,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'sky', label: 'Arquipélago Celeste', desc: 'Ilhas flutuantes ligadas por barcos voadores e magia.', icon: Globe },
       { id: 'under', label: 'Reinos da Profundeza', desc: 'Vasta rede de cavernas, fungos e perigos do Underdark.', icon: Mountain },
-      { id: 'techno', label: 'Megacidade Continental', desc: 'Uma única cidade colossal cobre toda a superfície conhecida.', icon: Settings }
+      { id: 'techno', label: 'Megacidade Continental', desc: 'Uma única cidade colossal cobre toda a superfície conhecida.', icon: Settings },
+      { id: 'ocean', label: 'Mundo Oceânico', desc: 'Infindáveis mares pontuados por recifes de coral e cidades submersas.', icon: Waves },
+      { id: 'desert', label: 'Dunas Infinitas', desc: 'Mar de areia com oásis mágicos e segredos enterrados.', icon: Sun },
+      { id: 'jungle', label: 'Selva Devoradora', desc: 'Vegetação agressiva que consome construções e civilizações.', icon: Tent }
     ]
   },
   {
@@ -101,7 +108,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'mage', label: 'Magocracia Arcana', desc: 'Conclaves de magos governam através do conhecimento e poder.', icon: BookOpen },
       { id: 'theo', label: 'Teocracia Divina', desc: 'Sumos sacerdotes governam em nome dos deuses do panteão.', icon: Church },
-      { id: 'feudal', label: 'Feudalismo Decadente', desc: 'Nobres em guerra por terras e linhagens esquecidas.', icon: Hammer }
+      { id: 'feudal', label: 'Feudalismo Decadente', desc: 'Nobres em guerra por terras e linhagens esquecidas.', icon: Hammer },
+      { id: 'merchant', label: 'Sindicato Mercante', desc: 'As grandes guildas de comércio compram e vendem leis.', icon: Coins },
+      { id: 'anarchy', label: 'Terras sem Lei', desc: 'Tribos errantes e bandoleiros sobrevivem sob o direito do mais forte.', icon: ShieldAlert },
+      { id: 'hive', label: 'Mente Coletiva', desc: 'Uma consciencia central comanda as ações de toda a população.', icon: Activity }
     ]
   },
   {
@@ -111,17 +121,23 @@ const GENESIS_STEPS = [
     options: [
       { id: 'invasion', label: 'Invasão Planar', desc: 'Fendas se abrindo para o Abismo ou para os Nove Infernos.', icon: Globe },
       { id: 'blight', label: 'A Praga Mágica', desc: 'Doença que corrompe a magia e transforma seres em aberrações.', icon: FlameIcon },
-      { id: 'cosmic', label: 'O Despertar do Titã', desc: 'Uma entidade primordial começou a se mover sob a terra.', icon: ZapIcon }
+      { id: 'cosmic', label: 'O Despertar do Titã', desc: 'Uma entidade primordial começou a se mover sob a terra.', icon: ZapIcon },
+      { id: 'rebellion', label: 'Guerra de Castas', desc: 'As classes oprimidas se levantam contra os governantes tiranos.', icon: Users2 },
+      { id: 'techvsnature', label: 'Tecno-Expansão', desc: 'O progresso industrial destruindo os últimos santuários naturais.', icon: Settings },
+      { id: 'forgotten', label: 'O Retorno dos Banidos', desc: 'Antigas raças exiladas voltaram para reivindicar o mundo.', icon: Ghost }
     ]
   },
   {
     id: 'tone',
-    title: 'Tom da Campanha',
+    title: 'Atmosfera da Campanha',
     description: 'Qual a sensação predominante da narrativa?',
     options: [
       { id: 'grim', label: 'Grimdark', desc: 'Lute contra o inevitável. Escolhas difíceis e consequências morais.', icon: Skull },
       { id: 'heroic', label: 'Heroísmo Épico', desc: 'Heroísmo clássico contra o mal absoluto. Proezas lendárias.', icon: Star },
-      { id: 'mystery', label: 'Mistério Sobrenatural', desc: 'Investigação, conspirações e horrores ocultos.', icon: Search }
+      { id: 'mystery', label: 'Mistério Sobrenatural', desc: 'Investigação, conspirações e horrores ocultos.', icon: Search },
+      { id: 'pulp', label: 'Aventura Pulp', desc: 'Ação frenética, heróis maiores que a vida e perigos exóticos.', icon: ZapIcon },
+      { id: 'comedy', label: 'Sátira Fantástica', desc: 'Humor ácido, situações absurdas e deuses caprichosos.', icon: Sparkles },
+      { id: 'political', label: 'Intriga Política', desc: 'Diplomacia, espionagem e guerra psicológica entre nações.', icon: ScrollText }
     ]
   },
   {
@@ -131,7 +147,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'common', label: 'Magia Ubíqua', desc: 'Itens mágicos e feitiços são comuns no dia a dia.', icon: ZapIcon },
       { id: 'taboo', label: 'Conhecimento Proibido', desc: 'Magia é caçada ou restrita a poucos privilegiados.', icon: ShieldIcon },
-      { id: 'ritual', label: 'Fé e Sacrifício', desc: 'Magia vem exclusivamente da devoção aos deuses ou pactos.', icon: Scroll }
+      { id: 'ritual', label: 'Fé e Sacrifício', desc: 'Magia vem exclusivamente da devoção aos deuses ou pactos.', icon: Scroll },
+      { id: 'wild', label: 'Fontes Instáveis', desc: 'A magia é imprevisível e pode causar efeitos colaterais desastrosos.', icon: CloudLightning },
+      { id: 'blood', label: 'Magia de Sangue', desc: 'O poder exige vitalidade e sacrifícios pessoais para ser canalizado.', icon: Droplets },
+      { id: 'forgotten_art', label: 'Arcanismo Arcaico', desc: 'Apenas segredos antigos em ruínas permitem o uso de magia.', icon: BookOpen }
     ]
   },
   {
@@ -141,7 +160,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'light', label: 'A Ordem do Sol (Pelor/Tyr)', desc: 'Foco em justiça, luz e proteção dos fracos.', icon: Sun },
       { id: 'shadow', label: 'Corte das Sombras (Raven Queen/Lolth)', desc: 'Equilíbrio entre vida e morte, ou domínio através do medo.', icon: Ghost },
-      { id: 'nature', label: 'Voz da Natureza (Chauntea/Silvanus)', desc: 'Preservação do mundo natural e ciclos da vida.', icon: MapPin }
+      { id: 'nature', label: 'Voz da Natureza (Chauntea/Silvanus)', desc: 'Preservação do mundo natural e ciclos da vida.', icon: MapPin },
+      { id: 'knowledge', label: 'Escribas do Destino (Oghma/Ioun)', desc: 'Culto ao conhecimento, segredos e profecias.', icon: ScrollText },
+      { id: 'chaos', label: 'Arautos do Caos (Talos/Gruumsh)', desc: 'Destruição, força bruta e a glória do conflito.', icon: FlameIcon },
+      { id: 'dead', label: 'Deuses Esquecidos', desc: 'Os deuses morreram ou abandonaram o mundo; apenas relíquias restam.', icon: Archive }
     ]
   },
   {
@@ -151,7 +173,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'cosmo', label: 'Metrópole Cosmopolita', desc: 'Todas as raças convivem em cidades vastas e densas.', icon: Users2 },
       { id: 'ancient', label: 'Resquícios Antigos', desc: 'Anões e Elfos governam, enquanto humanos são novatos.', icon: Hammer },
-      { id: 'broken', label: 'Povos Exilados', desc: 'Goblins, Orcs e Tiferinos buscam lugar em um mundo hostil.', icon: ShieldIcon }
+      { id: 'broken', label: 'Povos Exilados', desc: 'Goblins, Orcs e Tiferinos buscam lugar em um mundo hostil.', icon: ShieldIcon },
+      { id: 'hybrid', label: 'Quimeras Bio-Mágicas', desc: 'Mistura de carne e metal, ou raças criadas em laboratórios arcanos.', icon: FlaskConical },
+      { id: 'undead', label: 'Civilização dos Mortos', desc: 'Espectros e zumbis conscientes vivem em uma sociedade eterna.', icon: Skull },
+      { id: 'planar', label: 'Nativos Extraterrenos', desc: 'Gith, Aasimar e Genasi são a maioria dominante.', icon: Globe }
     ]
   },
   {
@@ -161,7 +186,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'mana', label: 'Mercado de Essências', desc: 'Cristais de mana são a moeda e o combustível da indústria.', icon: Gem },
       { id: 'gold', label: 'Padrão Ouro Clássico', desc: 'Moedas de metal precioso e rotas comerciais de especiarias.', icon: Coins },
-      { id: 'soul', label: 'Troca de Almas', desc: 'Essência vital e memórias são a única moeda que importa.', icon: Ghost }
+      { id: 'soul', label: 'Troca de Almas', desc: 'Essência vital e memórias são a única moeda que importa.', icon: Ghost },
+      { id: 'barter', label: 'Escambo de Necessidade', desc: 'Água e comida são mais valiosos que qualquer tesouro.', icon: Droplets },
+      { id: 'favor', label: 'Moeda de Sangue e Dívida', desc: 'Favores políticos e obrigações mágicas sustentam a economia.', icon: Hammer },
+      { id: 'relic', label: 'Tráfico de Relíquias', desc: 'Artefatos de uma era perdida são o único recurso de alto valor.', icon: Archive }
     ]
   },
   {
@@ -171,7 +199,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'shatter', label: 'A Quebra do Mundo', desc: 'Um evento sísmico ou mágico dividiu o continente.', icon: CloudLightning },
       { id: 'war', label: 'Guerra de 100 Anos', desc: 'Um conflito geracional que exauriu os recursos dos reinos.', icon: SwordIcon },
-      { id: 'eclipse', label: 'O Grande Eclipse', desc: 'Um período de escuridão que permitiu a manifestação de demônios.', icon: Moon }
+      { id: 'eclipse', label: 'O Grande Eclipse', desc: 'Um período de escuridão que permitiu a manifestação de demônios.', icon: Moon },
+      { id: 'plague', label: 'Febre do Abismo', desc: 'Uma doença vinda de fora do mundo que dizimou nações.', icon: Skull },
+      { id: 'ascension', label: 'Ascensão Mortal', desc: 'Um herói roubou o poder de um deus, causando caos celestial.', icon: Crown },
+      { id: 'rain', label: 'Chuva de Fogo Estelar', desc: 'Fragmentos de um meteoro mágico trouxeram maravilhas e perigos.', icon: Sparkles }
     ]
   },
   {
@@ -181,7 +212,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'eye', label: 'O Olho Solar', desc: 'O sol é um olho gigante que vigia o mundo e julga os pecadores.', icon: Eye },
       { id: 'sleep', label: 'Mundo Sem Sono', desc: 'Ninguém dorme. As pessoas vivem 24h por dia, mas a mente se desgasta.', icon: ZapIcon },
-      { id: 'vertical', label: 'Verticalidade Absoluta', desc: 'O mundo não tem chão plano, apenas penhascos e pontes infinitas.', icon: ArrowUp }
+      { id: 'vertical', label: 'Verticalidade Absoluta', desc: 'O mundo não tem chão plano, apenas penhascos e pontes infinitas.', icon: ArrowUp },
+      { id: 'shadows', label: 'Sombras Vivas', desc: 'As sombras das pessoas têm vontade própria e podem atacar seus donos.', icon: Ghost },
+      { id: 'echoes', label: 'Ecos Temporais', desc: 'Passado, presente e futuro ocorrem simultaneamente em certos locais.', icon: History },
+      { id: 'reincarnation', label: 'Ciclo Fechado', desc: 'Quem morre renasce imediatamente com as mesmas memórias.', icon: RefreshCw }
     ]
   },
   {
@@ -191,7 +225,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'metal', label: 'Tabu do Ferro', desc: 'O metal é amaldiçoado. Armas e armaduras são de osso ou cristal.', icon: Ban },
       { id: 'silence', label: 'Voto de Silêncio', desc: 'Cidades inteiras se comunicam por sinais; falar alto é um crime.', icon: VolumeX },
-      { id: 'nomad', label: 'Cultura Errante', desc: 'Ninguém possui terra. Cidades são caravanas que nunca param.', icon: Compass }
+      { id: 'nomad', label: 'Cultura Errante', desc: 'Ninguém possui terra. Cidades são caravanas que nunca param.', icon: Compass },
+      { id: 'masked', label: 'Sociedade Mascarada', desc: 'Ninguém revela o rosto; as máscaras mostram o cargo e status social.', icon: User },
+      { id: 'honored', label: 'Código de Duelo', desc: 'Todos os conflitos devem ser resolvidos em arenas formais.', icon: SwordIcon },
+      { id: 'ancestor_worship', label: 'Piedade Espectral', desc: 'Os mortos participam do governo e das decisões familiares.', icon: Users2 }
     ]
   },
   {
@@ -201,7 +238,10 @@ const GENESIS_STEPS = [
     options: [
       { id: 'stone', label: 'Idade do Mito', desc: 'Ferramentas de pedra e osso. Magia é a única tecnologia.', icon: Mountain },
       { id: 'steam', label: 'Arcanepunk', desc: 'Engrenagens movidas a mana e navios de metal flutuante.', icon: Settings },
-      { id: 'biopunk', label: 'Tecnologia Orgânica', desc: 'Máquinas feitas de tecido vivo, nervos e biotecnologia.', icon: Activity }
+      { id: 'biopunk', label: 'Tecnologia Orgânica', desc: 'Máquinas feitas de tecido vivo, nervos e biotecnologia.', icon: Activity },
+      { id: 'clockwork', label: 'Maquinaria de Precisão', desc: 'Autômatos de latão e relógios que controlam o fluxo do tempo.', icon: Cpu },
+      { id: 'scraptown', label: 'Ferro-Velho Industrial', desc: 'Construções feitas de restos de uma civilização superior e decaída.', icon: Hammer },
+      { id: 'alchtech', label: 'Alquimia Avançada', desc: 'Líquidos e gases mágicos substituem eletricidade e fogo.', icon: FlaskConical }
     ]
   }
 ];
@@ -233,19 +273,8 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
   const [draftTitle, setDraftTitle] = useState('');
   const [pendingOption, setPendingOption] = useState<any | null>(null);
 
-  const TONE_OPTIONS = [
-    { id: 'minimalist', label: 'Minimalista', desc: 'Breve e factual. Ideal para narrar com suas próprias palavras.', icon: ZapIcon },
-    { id: 'immersive', label: 'Imersivo', desc: 'Rico em detalhes sensoriais (cheiro, som, luz).', icon: Eye },
-    { id: 'theatrical', label: 'Teatral', desc: 'Foco no drama, impacto emocional e frases épicas.', icon: FlameIcon }
-  ];
-
-  const handleChoice = (stepId: string, choice: any, tone?: string) => {
-    if (!tone) {
-      setPendingOption(choice);
-      return;
-    }
-
-    const updatedChoices = { ...guidedChoices, [stepId]: { ...choice, tone } };
+  const handleChoice = (stepId: string, choice: any) => {
+    const updatedChoices = { ...guidedChoices, [stepId]: choice };
     setGuidedChoices(updatedChoices);
     setPendingOption(null);
 
@@ -256,8 +285,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
       const choicesText = Object.entries(updatedChoices)
         .map(([id, c]: [string, any]) => {
           const step = GENESIS_STEPS.find(s => s.id === id);
-          const toneLabel = TONE_OPTIONS.find(t => t.id === c.tone)?.label;
-          return `${step?.title}: ${c.label} [Tom: ${toneLabel}] (${c.desc})`;
+          return `${step?.title}: ${c.label} (${c.desc})`;
         })
         .join('\n');
 
@@ -386,46 +414,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                         <ArrowRight size={14} className="text-muted-foreground/30 mt-1 group-hover:translate-x-1 group-hover:text-accent transition-all" />
                       </button>
                     ))
-                  ) : (
-                    <div className="space-y-4 animate-in zoom-in-95 duration-200">
-                      <div className="p-3 bg-accent/10 border border-accent/20 rounded-xl flex items-center gap-3">
-                        <pendingOption.icon size={16} className="text-accent" />
-                        <div>
-                          <p className="text-[10px] uppercase font-bold text-accent">Tema Escolhido</p>
-                          <p className="text-xs font-bold text-white">{pendingOption.label}</p>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="ml-auto h-7 text-[9px] uppercase font-bold"
-                          onClick={() => setPendingOption(null)}
-                        >
-                          Trocar
-                        </Button>
-                      </div>
-
-                      <div className="space-y-2">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest pl-1">Escolha o Tom da Narração</p>
-                        <div className="grid grid-cols-1 gap-2">
-                          {TONE_OPTIONS.map((tone) => (
-                            <button
-                              key={tone.id}
-                              onClick={() => handleChoice(GENESIS_STEPS[currentStep].id, pendingOption, tone.id)}
-                              className="group flex items-center gap-3 p-3 rounded-lg border border-white/5 bg-accent/5 hover:border-primary/40 hover:bg-primary/5 transition-all text-left"
-                            >
-                              <div className="w-8 h-8 rounded bg-white/5 flex items-center justify-center shrink-0 group-hover:bg-primary/10 transition-colors">
-                                <tone.icon size={16} className="text-muted-foreground group-hover:text-primary transition-colors" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="font-bold text-xs text-white/90 group-hover:text-primary transition-colors">{tone.label}</p>
-                                <p className="text-[10px] text-muted-foreground leading-tight">{tone.desc}</p>
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </ScrollArea>
 
@@ -798,6 +787,51 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                   ))}
                 </CardContent>
               </Card>
+
+              {result.sessionZero && (
+                <Card className="border-primary/20 bg-primary/[0.03] rounded-2xl overflow-hidden md:col-span-2">
+                  <CardHeader className="py-3 px-4 border-b border-primary/10 bg-primary/5 flex flex-row items-center justify-between">
+                    <CardTitle className="text-[10px] font-headline uppercase tracking-[0.2em] text-primary flex items-center gap-2">
+                      <ShieldIcon size={12} /> Gênese da Sessão 0
+                    </CardTitle>
+                    <Badge variant="outline" className="text-[8px] border-primary/30 text-primary uppercase">Segurança & Pilares</Badge>
+                  </CardHeader>
+                  <CardContent className="p-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-bold text-primary uppercase">Pilares da Campanha</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.sessionZero.pillars?.map((p: string, i: number) => (
+                            <span key={i} className="text-[9px] bg-primary/10 text-primary px-2 py-0.5 rounded-md border border-primary/20">{p}</span>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-bold text-destructive uppercase">Ferramentas de Segurança</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {result.sessionZero.safetyTools?.map((s: string, i: number) => (
+                            <span key={i} className="text-[9px] bg-destructive/10 text-destructive px-2 py-0.5 rounded-md border border-destructive/20">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-bold text-accent uppercase">Expectativas dos Jogadores</span>
+                        <p className="text-[10px] text-muted-foreground leading-relaxed">{result.sessionZero.playerExpectations}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-bold text-emerald-400 uppercase">Ganchos de Personagem</span>
+                        <ul className="space-y-1">
+                          {result.sessionZero.characterHooks?.map((h: string, i: number) => (
+                            <li key={i} className="text-[10px] text-white/70 leading-tight">• {h}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               <Card className="border-white/5 bg-black/40 rounded-2xl overflow-hidden">
                 <CardHeader className="py-3 px-4 border-b border-white/5 bg-white/[0.02]">

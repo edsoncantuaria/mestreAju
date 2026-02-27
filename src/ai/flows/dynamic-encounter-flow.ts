@@ -30,6 +30,7 @@ const DynamicEncounterInputSchema = z.object({
   partyInfo: PartyInfoSchema,
   lastChoice: z.string().optional().describe('A última escolha feita pelo mestre ou jogadores.'),
   customInput: z.string().optional().describe('Entrada manual do mestre para desviar das opções.'),
+  narrativeStyle: z.enum(['minimalist', 'immersive', 'theatrical']).optional().describe('Estilo de narração: minimalist (direto), immersive (sensorial), theatrical (dramático).'),
 });
 export type DynamicEncounterInput = z.infer<typeof DynamicEncounterInputSchema>;
 
@@ -70,12 +71,25 @@ PRINCÍPIOS DE SESSÃO VIVA (WORLD DESIGN PROFISSIONAL):
 3. Se houver exploração, revele "Detalhes Ocultos" que liguem a ruínas antigas ou segredos de NPCs importantes.
 4. Equilíbrio Mecânico: Use a terminologia correta de D&D 5e (Vantagem, Desvantagem, CD, Terreno Difícil, Dano Perfurante, etc). Cite regras do SRD ativamente.
 5. Orçamento de XP: Nunca sugira um combate além da soma 'Mortal' do grupo sem explícito aviso logístico.
+6. Multiclasse: O campo de classe pode conter distribuições (Ex: Guerreiro 1 / Mago 2). Use essa informação para descrever como o personagem utiliza habilidades de ambas as fontes.
+
+{{#if narrativeStyle}}
+**ESTILO NARRATIVO REQUERIDO: {{narrativeStyle}}**
+- Se "minimalist": Descrições curtas, factuais e diretas. Foque no que é, não no que parece.
+- Se "immersive": Descrições ricas, sensoriais (cheiro, som, luz) e atmosféricas.
+- Se "theatrical": Foque no drama, impacto emocional e frases de efeito.
+{{/if}}
 
 ORÇAMENTO DE XP ATUAL DO GRUPO:
 - Fácil: {{{partyInfo.xpThresholds.easy}}} XP
 - Médio: {{{partyInfo.xpThresholds.medium}}} XP
 - Difícil: {{{partyInfo.xpThresholds.hard}}} XP
 - Mortal: {{{partyInfo.xpThresholds.deadly}}} XP
+
+COMPOSIÇÃO DO GRUPO (PARTY):
+{{#each partyInfo.members}}
+- {{name}} ({{race}} {{class}} - Nível {{level}})
+{{/each}}
 
 SITUAÇÃO ATUAL E LORE:
 {{{currentSituation}}}
@@ -88,7 +102,9 @@ Ação Anterior Escolhida: {{{lastChoice}}}
 Intervenção Direta do Mestre: {{{customInput}}}
 {{/if}}
 
-Responda exclusivamente em Português Brasileiro.`,
+Responda exclusivamente em Português Brasileiro.
+
+Sua resposta DEVE ser um objeto JSON que estritamente adere ao esquema de saída.`,
 });
 
 const dynamicEncounterFlow = ai.defineFlow(

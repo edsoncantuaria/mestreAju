@@ -24,9 +24,12 @@ import {
   Flag,
   Save,
   Scroll,
+  ScrollText,
   Package,
   Minus,
-  CheckCircle2
+  CheckCircle2,
+  Eye,
+  Flame
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -82,6 +85,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
   const [customInput, setCustomInput] = useState('');
   const [showMap, setShowMap] = useState(false);
   const [copiedMacro, setCopiedMacro] = useState<string | null>(null);
+  const [narrativeStyle, setNarrativeStyle] = useState<'minimalist' | 'immersive' | 'theatrical'>('immersive');
 
   // New states for Session History feature
   const [isEndSessionModalOpen, setIsEndSessionModalOpen] = useState(false);
@@ -299,6 +303,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
           members: partyInfo.members,
           xpThresholds: calculateXPThresholds()
         },
+        narrativeStyle
       });
       await updateNarrativeLog(step);
     } catch (e) {
@@ -321,6 +326,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
           xpThresholds: calculateXPThresholds()
         },
         customInput: customInput.trim() || undefined,
+        narrativeStyle
       });
       await updateNarrativeLog(step);
       setCustomInput('');
@@ -385,7 +391,9 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
         currentLocation: location,
         inGameDate: inGameDate,
         liveSummary: liveSummary,
-        campaignLore: activeSession?.worldLore || ''
+        campaignLore: activeSession?.worldLore || '',
+        partyMembers: partyInfo.members,
+        narrativeStyle
       });
 
       // 1. Increment Day
@@ -422,7 +430,9 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
       const result = await endPlaySession({
         liveSummary,
         turnLogs,
-        dmNotes
+        dmNotes,
+        currentConflicts: activeSession.activeConflicts || [],
+        currentRumors: activeSession.rumorTable || []
       });
 
       const sessionRecord = {
@@ -454,6 +464,8 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
           liveSummary: '', // Clear running summary for next session
           number: currentSessionNumber + 1
         },
+        activeConflicts: result.newActiveConflicts,
+        rumorTable: result.newRumorTable,
         dateLastModified: new Date().toISOString()
       });
 
@@ -462,6 +474,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
       setCustomInput('');
       setLiveSummary('');
       toast({ title: "Sessão Encerrada!", description: "O registro foi salvo no Arquivo da Crônica." });
+      // The UI will naturally empty the history and we can show a recap.
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", title: "Erro", description: "Falha ao arquivar a sessão." });
@@ -471,6 +484,8 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
   };
 
   const lastStep = history[history.length - 1];
+
+  const lastSession = activeSession?.playSessions?.[activeSession.playSessions.length - 1];
 
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
@@ -646,187 +661,260 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
             />
           </div>
         </div>
-      </div >
+      </div>
 
-      {/* ── CENTER: NARRATIVE FEED ── */}
-      < div className="flex-1 min-h-0 flex flex-col bg-black/40 border border-white/5 rounded-xl overflow-hidden relative shadow-inner" >
-        {
-          history.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center space-y-4">
-              <div className="w-12 h-12 rounded-full bg-primary/5 border border-primary/20 flex items-center justify-center">
-                <PenTool size={20} className="text-primary/40" />
-              </div>
-              <div className="transition-all animate-in fade-in slide-in-from-bottom-2">
-                <p className="text-[9px] text-accent font-bold uppercase tracking-widest mb-2">Despertar Crônica</p>
-                <Input
-                  placeholder="Ex: Os heróis chegam à taverna..."
-                  value={currentSituation}
-                  onChange={(e) => setCurrentSituation(e.target.value)}
-                  className="h-8 bg-background/50 border-white/10 text-[11px] text-center w-full max-w-[200px]"
-                />
-              </div>
-              <Button onClick={startSession} disabled={!currentSituation} size="sm" className="bg-primary hover:bg-primary/90 h-8 shadow-lg shadow-primary/20 px-6">
-                Iniciar Narrativa
-              </Button>
+      {/* ── MAIN CONTENT: NARRATIVE LOG OR RECAP ── */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 relative">
+        {history.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-6">
+            <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mb-4">
+              <ScrollText size={40} className="text-accent/40" />
             </div>
-          ) : (
-            <ScrollArea ref={scrollRef} className="flex-1">
-              <div className="p-3 space-y-4">
-                {history.map((step, idx) => {
-                  const isLast = idx === history.length - 1;
-                  return (
-                    <div key={idx} className="relative pl-5">
-                      {!isLast && <div className="absolute left-[9px] top-6 bottom-[-24px] w-0.5 bg-white/5" />}
-                      <div className={cn(
-                        "absolute left-0 top-1.5 w-5 h-5 rounded-full border flex items-center justify-center transition-all duration-500",
-                        isLast ? "bg-primary border-primary shadow-lg shadow-primary/30" : "bg-black/40 border-white/10"
-                      )}>
-                        {isLast ? <Zap size={8} className="text-white" /> : <div className="w-0.5 h-0.5 bg-white/20 rounded-full" />}
-                      </div>
 
-                      <div className={cn(
-                        "p-3 rounded-xl border transition-all duration-500 group",
-                        isLast ? "bg-white/[0.03] border-white/10 shadow-lg" : "bg-black/10 border-white/5 opacity-60 hover:opacity-100"
-                      )}>
-                        <div className="flex justify-between items-start mb-1.5">
-                          <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50">Passo {idx + 1}</span>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-4 w-4 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                              onClick={() => chooseOption(`Ramificação ${idx + 1}`, step.narrativa)}
-                            >
-                              <GitBranch size={8} />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <p className="text-[10.5px] leading-relaxed font-body text-foreground/90 italic">
-                          "{step.narrativa}"
-                        </p>
-
-                        {step.detalheOculto && (
-                          <div className="mt-2 py-1 px-2 bg-accent/5 border border-accent/10 rounded-lg flex items-center justify-between gap-1">
-                            <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                              <Zap size={9} className="text-accent shrink-0" />
-                              <span className="text-[8px] font-bold text-accent uppercase tracking-tighter truncate">{step.detalheOculto}</span>
-                            </div>
-                            <div className="flex gap-0.5 shrink-0">
-                              {[
-                                { icon: PenTool, color: 'text-accent', tooltip: 'Documento', action: () => onContextAction('narrative', { messageContent: `Documento: ${step.detalheOculto}. Contexto: ${step.narrativa}`, documentType: 'documento' }) },
-                                { icon: Search, color: 'text-accent', tooltip: 'Analisar', action: () => onContextAction('analysis', { situation: step.narrativa, npcs: step.detalheOculto }) },
-                                { icon: Map, color: 'text-lime-400', tooltip: 'Mapa', action: () => onContextAction('cartography', { terrain: step.detalheOculto, context: step.narrativa, keyElements: "descritos" }) },
-                                { icon: step.tipoDescoberta === 'location' ? MapPin : Users, color: 'text-sky-400', tooltip: 'Grimório', action: () => onContextAction('entities', { type: step.tipoDescoberta === 'location' ? 'location' : 'npc', name: step.detalheOculto, context: step.narrativa }) }
-                              ].map((btn, bi) => (
-                                <TooltipProvider key={bi}>
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button size="icon" variant="ghost" className={cn("h-5 w-5 hover:bg-accent/10", btn.color)} onClick={btn.action}>
-                                        <btn.icon size={10} />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent className="text-[9px]">{btn.tooltip}</TooltipContent>
-                                  </Tooltip>
-                                </TooltipProvider>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-          )
-        }
-      </div >
-
-      {/* ── BOTTOM: ACTION PANEL ── */}
-      < div className="shrink-0 space-y-3" >
-        {
-          history.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-3 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.5)]">
-              <div className="space-y-2">
-                <div className="flex items-center gap-2 mb-1">
-                  <ChevronDown size={12} className="text-accent" />
-                  <span className="text-[9px] font-bold text-accent uppercase tracking-widest">Opções de Narrativa</span>
+            {lastSession ? (
+              <div className="space-y-6 animate-in fade-in zoom-in duration-500">
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-headline font-black text-white">Sessão {lastSession.number} Encerrada</h2>
+                  <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                    O registro desta jornada foi arquivado. O que deseja fazer agora?
+                  </p>
                 </div>
 
-                <div className="max-h-[140px] overflow-y-auto pr-1 custom-scrollbar space-y-1.5 px-0.5">
-                  {lastStep?.opcoes.map((opt, i) => (
-                    <div key={i} className="flex gap-1 animate-in slide-in-from-right-2" style={{ animationDelay: `${i * 60}ms` }}>
-                      <Button
-                        variant="outline"
-                        className="flex-1 h-auto py-1.5 px-2.5 flex flex-col items-start gap-0.5 border-white/10 bg-black/20 hover:bg-accent/10 hover:border-accent/40 transition-all text-left group"
-                        onClick={() => chooseOption(opt.label)}
-                      >
-                        <div className="flex w-full justify-between items-center">
-                          <span className="text-[10px] font-bold text-accent group-hover:text-white transition-colors uppercase tracking-tight line-clamp-1">{opt.label}</span>
-                          <span className={cn(
-                            "text-[6px] px-1 py-0 rounded border font-bold uppercase",
-                            opt.difficulty === 'Mortal' ? 'bg-red-500/20 text-red-500 border-red-500/50' :
-                              opt.difficulty === 'Difícil' ? 'bg-orange-500/20 text-orange-500 border-orange-500/50' :
-                                'bg-green-500/20 text-green-500 border-green-500/50'
-                          )}>
-                            {opt.difficulty[0]}
-                          </span>
-                        </div>
-                        <span className="text-[8.5px] text-muted-foreground/60 line-clamp-1 italic">{opt.description}</span>
-                      </Button>
-                      {opt.roll20Macro && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="w-7 shrink-0 h-8 border-white/10 bg-black/40 hover:text-accent p-0"
-                          onClick={() => copyMacro(opt.roll20Macro!)}
-                        >
-                          {copiedMacro === opt.roll20Macro ? <Check size={10} className="text-green-500" /> : <Terminal size={10} />}
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-white/5 space-y-2.5">
-                <div className="flex gap-2 items-center">
-                  <Input
-                    placeholder="Ou tome uma ação livre..."
-                    value={customInput}
-                    onChange={(e) => setCustomInput(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && customInput.trim() && chooseOption('Ação Livre')}
-                    className="h-8 text-[10px] bg-black/40 border-white/10 focus:border-accent/30"
-                  />
-                  <Button size="icon" onClick={() => chooseOption('Ação Livre')} disabled={!customInput.trim()} className="h-8 w-8 bg-primary shadow-lg shadow-primary/20 p-0 shrink-0">
-                    <Plus size={14} />
-                  </Button>
-                </div>
-
-                <div className="flex justify-between items-center px-1">
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="sm" onClick={resetHistory} className="text-[8px] h-5 text-muted-foreground/50 hover:text-destructive p-0 flex items-center gap-1.5">
-                      <History size={10} /> Reset
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setIsEndSessionModalOpen(true)} className="text-[8px] h-5 text-muted-foreground/50 hover:text-red-400 p-0 flex items-center gap-1.5">
-                      <Save size={10} /> Encerrar
-                    </Button>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-left space-y-4 max-w-sm mx-auto">
+                  <div className="space-y-1">
+                    <h4 className="text-[10px] font-bold text-accent uppercase tracking-widest">Resumo Final</h4>
+                    <p className="text-xs text-foreground/80 leading-relaxed italic line-clamp-4">
+                      &ldquo;{lastSession.finalSummary}&rdquo;
+                    </p>
                   </div>
-                  {lastStep?.sugestaoMecanica && (
-                    <div className="text-[7.5px] text-accent font-bold px-1.5 py-0.5 bg-accent/5 rounded border border-accent/20 flex items-center gap-1 max-w-[140px] truncate">
-                      <Info size={8} /> {lastStep.sugestaoMecanica}
+
+                  {lastSession.finalInventory?.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Tesouros Descobertos</h4>
+                      <div className="flex flex-wrap gap-1.5">
+                        {lastSession.finalInventory.slice(0, 3).map((item: any, i: number) => (
+                          <Badge key={i} variant="outline" className="text-[9px] border-emerald-500/20 bg-emerald-500/5 text-emerald-300">
+                            {item.name}
+                          </Badge>
+                        ))}
+                        {lastSession.finalInventory.length > 3 && <span className="text-[9px] text-muted-foreground">+{lastSession.finalInventory.length - 3} mais</span>}
+                      </div>
                     </div>
                   )}
+
+                  <div className="space-y-2">
+                    <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-widest">Próximo Gancho</h4>
+                    <p className="text-[10px] text-sky-200/60 leading-tight">
+                      {lastSession.nextSessionHook}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-2 w-full max-w-xs mx-auto">
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl relative overflow-hidden group">
+                    <p className="text-[10px] text-accent uppercase font-bold mb-2 tracking-widest text-left">Ponto de Partida</p>
+                    <Input
+                      placeholder="Ex: Os heróis chegam à taverna..."
+                      value={currentSituation}
+                      onChange={(e) => setCurrentSituation(e.target.value)}
+                      className="bg-background/50 border-white/10 text-xs focus:border-primary/50 h-8"
+                    />
+                  </div>
+                  <Button
+                    className="w-full bg-primary hover:bg-primary/90 text-white font-bold h-12 rounded-xl text-sm"
+                    onClick={startSession}
+                    disabled={!currentSituation}
+                  >
+                    Iniciar Nova Narrativa
+                  </Button>
+                  <div className="p-4 bg-accent/5 border border-accent/10 rounded-xl space-y-2">
+                    <p className="text-[10px] text-accent/80 font-bold uppercase tracking-widest flex items-center justify-center gap-2">
+                      <PenTool size={10} /> Preparação Inter-Sessão
+                    </p>
+                    <p className="text-[10px] text-muted-foreground leading-tight text-center">
+                      Use o <strong>Grimório do Mundo</strong> para refinar NPCs, Localidades e Lore com base nos últimos acontecimentos.
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          )
-        }
-      </div >
+            ) : (
+              <div className="space-y-4 animate-in fade-in duration-500">
+                <div className="space-y-2 mb-6">
+                  <h2 className="text-xl font-headline font-black text-white">Pronto para a Aventura?</h2>
+                  <p className="text-sm text-muted-foreground max-w-xs mx-auto">
+                    Inicie uma nova cena descrevendo a situação inicial no campo abaixo.
+                  </p>
+                </div>
+                <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl relative overflow-hidden group">
+                  <p className="text-[10px] text-accent uppercase font-bold mb-2 tracking-widest text-left">Situação Inicial</p>
+                  <Input
+                    placeholder="Ex: Os heróis chegam às portas da Cidade de Ferro..."
+                    value={currentSituation}
+                    onChange={(e) => setCurrentSituation(e.target.value)}
+                    className="bg-background/50 border-white/10 text-xs focus:border-primary/50 h-8"
+                  />
+                </div>
+                <Button onClick={startSession} disabled={!currentSituation} className="w-full font-headline bg-primary hover:bg-primary/90 h-10 text-sm shadow-lg shadow-primary/20 rounded-xl">
+                  Despertar Narrativa
+                </Button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <ScrollArea ref={scrollRef} className="h-full">
+            <div className="space-y-6 pb-20 pr-4">
+              {history.map((step, idx) => {
+                const isLast = idx === history.length - 1;
+                return (
+                  <div key={idx} className="relative pl-6">
+                    {!isLast && <div className="absolute left-[11px] top-6 bottom-[-24px] w-0.5 bg-white/5" />}
+                    <div className={cn(
+                      "absolute left-0 top-1.5 w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-500",
+                      isLast ? "bg-primary border-primary shadow-lg shadow-primary/30" : "bg-black/40 border-white/10"
+                    )}>
+                      {isLast ? <Zap size={10} className="text-white" /> : <div className="w-1 h-1 bg-white/20 rounded-full" />}
+                    </div>
 
-      {/* --- Overlay Modals (Inventory, End Session) remains the same logic but as Dialogs --- */}
-      < Dialog open={showInventory} onOpenChange={setShowInventory} >
+                    <div className={cn(
+                      "p-5 rounded-2xl border transition-all duration-500 group",
+                      isLast ? "bg-card/60 backdrop-blur-md border border-white/10 shadow-2xl" : "bg-black/20 border-white/5 opacity-70 hover:opacity-100"
+                    )}>
+                      <div className="flex justify-between items-start mb-2">
+                        <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Passo {idx + 1}</span>
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => chooseOption(`Ramificação do Passo ${idx + 1}`, step.narrativa)}
+                          >
+                            <GitBranch size={12} />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <p className="text-xs leading-relaxed font-body text-foreground/90 italic">
+                        "{step.narrativa}"
+                      </p>
+
+                      {step.detalheOculto && (
+                        <div className="mt-3 p-3 bg-accent/10 border border-accent/20 rounded-lg flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <Zap size={14} className="text-accent animate-pulse" />
+                            <span className="text-[10px] font-bold text-accent uppercase tracking-tighter">DESCOBERTA: {step.detalheOculto}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            {[
+                              { icon: PenTool, color: 'text-accent', tooltip: 'Documento', action: () => onContextAction('narrative', { messageContent: `Documento: ${step.detalheOculto}. Contexto: ${step.narrativa}`, documentType: 'documento' }) },
+                              { icon: Search, color: 'text-accent', tooltip: 'Analisar', action: () => onContextAction('analysis', { situation: step.narrativa, npcs: step.detalheOculto }) },
+                              { icon: Map, color: 'text-lime-400', tooltip: 'Mapa', action: () => onContextAction('cartography', { terrain: step.detalheOculto, context: step.narrativa, keyElements: "descritos" }) },
+                              { icon: step.tipoDescoberta === 'location' ? MapPin : Users, color: 'text-sky-400', tooltip: 'Grimório', action: () => onContextAction('entities', { type: step.tipoDescoberta === 'location' ? 'location' : 'npc', name: step.detalheOculto, context: step.narrativa }) }
+                            ].map((btn, bi) => (
+                              <TooltipProvider key={bi}>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button size="icon" variant="ghost" className={cn("h-6 w-6 hover:bg-accent/20", btn.color)} onClick={btn.action}>
+                                      <btn.icon size={12} />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent className="text-[9px]">{btn.tooltip}</TooltipContent>
+                                </Tooltip>
+                              </TooltipProvider>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        )}
+      </div>
+
+      {/* ── BOTTOM: ACTION PANEL ── */}
+      <div className="shrink-0 space-y-3">
+        {history.length > 0 && (
+          <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col gap-3 shadow-[0_-10px_30px_-10px_rgba(0,0,0,0.5)]">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 mb-1">
+                <ChevronDown size={12} className="text-accent" />
+                <span className="text-[9px] font-bold text-accent uppercase tracking-widest">Opções de Narrativa</span>
+              </div>
+
+              <div className="max-h-[140px] overflow-y-auto pr-1 custom-scrollbar space-y-1.5 px-0.5">
+                {lastStep?.opcoes.map((opt, i) => (
+                  <div key={i} className="flex gap-1 animate-in slide-in-from-right-2" style={{ animationDelay: `${i * 60}ms` }}>
+                    <Button
+                      variant="outline"
+                      className="flex-1 h-auto py-1.5 px-2.5 flex flex-col items-start gap-0.5 border-white/10 bg-black/20 hover:bg-accent/10 hover:border-accent/40 transition-all text-left group"
+                      onClick={() => chooseOption(opt.label)}
+                    >
+                      <div className="flex w-full justify-between items-center">
+                        <span className="text-[10px] font-bold text-accent group-hover:text-white transition-colors uppercase tracking-tight line-clamp-1">{opt.label}</span>
+                        <span className={cn(
+                          "text-[6px] px-1 py-0 rounded border font-bold uppercase",
+                          opt.difficulty === 'Mortal' ? 'bg-red-500/20 text-red-500 border-red-500/50' :
+                            opt.difficulty === 'Difícil' ? 'bg-orange-500/20 text-orange-500 border-orange-500/50' :
+                              'bg-green-500/20 text-green-500 border-green-500/50'
+                        )}>
+                          {opt.difficulty}
+                        </span>
+                      </div>
+                      <span className="text-[8.5px] text-muted-foreground/60 line-clamp-1 italic">{opt.description}</span>
+                    </Button>
+                    {opt.roll20Macro && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="w-7 shrink-0 h-8 border-white/10 bg-black/40 hover:text-accent p-0"
+                        onClick={() => copyMacro(opt.roll20Macro!)}
+                      >
+                        {copiedMacro === opt.roll20Macro ? <Check size={10} className="text-green-500" /> : <Terminal size={10} />}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-white/5 space-y-2.5">
+              <div className="flex gap-2 items-center">
+                <Textarea
+                  placeholder="Ou tome uma ação livre..."
+                  value={customInput}
+                  onChange={(e) => setCustomInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && customInput.trim() && chooseOption('Ação Livre')}
+                  className="h-10 min-h-[40px] text-[10px] bg-black/40 border-white/10 focus:border-accent/30 resize-none py-2"
+                />
+                <Button size="icon" onClick={() => chooseOption('Ação Livre')} disabled={!customInput.trim()} className="h-10 w-10 bg-primary shadow-lg shadow-primary/20 p-0 shrink-0">
+                  <Plus size={14} />
+                </Button>
+              </div>
+
+              <div className="flex justify-between items-center px-1">
+                <div className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={resetHistory} className="text-[8px] h-5 text-muted-foreground/50 hover:text-destructive p-0 flex items-center gap-1.5">
+                    <History size={10} /> Reset
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setIsEndSessionModalOpen(true)} className="text-[8px] h-5 text-muted-foreground/50 hover:text-red-400 p-0 flex items-center gap-1.5">
+                    <Save size={10} /> Encerrar Sessão
+                  </Button>
+                </div>
+                {lastStep?.sugestaoMecanica && (
+                  <div className="text-[7.5px] text-accent font-bold px-1.5 py-0.5 bg-accent/5 rounded border border-accent/20 flex items-center gap-1 max-w-[140px] truncate">
+                    <Info size={8} /> {lastStep.sugestaoMecanica}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* --- Overlay Modals --- */}
+      <Dialog open={showInventory} onOpenChange={setShowInventory}>
         <DialogContent className="sm:max-w-[400px] bg-card/95 backdrop-blur-xl border-white/10 text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-accent">
@@ -858,270 +946,12 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
             </div>
           </div>
         </DialogContent>
-      </Dialog >
+      </Dialog>
 
-      {activeSession?.mapImageUrl && (
-        <div className="mb-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full text-[10px] h-8 gap-2 bg-primary/5 border-primary/20 hover:bg-primary/10"
-            onClick={() => setShowMap(!showMap)}
-          >
-            <Map size={14} className="text-primary" />
-            {showMap ? 'Ocultar Mapa Principal' : 'Ver Mapa do Roll20'}
-          </Button>
-          {showMap && (
-            <div className="mt-2 rounded-xl overflow-hidden border border-white/10 animate-in fade-in zoom-in-95 duration-300 shadow-2xl">
-              <img src={activeSession.mapImageUrl} alt="Mapa Principal" className="w-full h-auto" />
-            </div>
-          )}
-        </div>
-      )
-      }
-
-      {
-        history.length === 0 ? (
-          <div className="space-y-4 animate-in fade-in duration-500">
-            <div className="p-4 bg-primary/5 border border-primary/20 rounded-xl relative overflow-hidden group">
-              <div className="absolute top-0 right-0 p-2 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Sparkles size={40} />
-              </div>
-              <p className="text-[10px] text-accent uppercase font-bold mb-2 tracking-widest">Ponto de Partida</p>
-              <Input
-                placeholder="Ex: Os heróis chegam às portas da Cidade de Ferro..."
-                value={currentSituation}
-                onChange={(e) => setCurrentSituation(e.target.value)}
-                className="bg-background/50 border-white/10 text-xs focus:border-primary/50"
-              />
-            </div>
-            <Button onClick={startSession} disabled={!currentSituation} className="w-full font-headline bg-primary hover:bg-primary/90 h-12 text-lg shadow-lg shadow-primary/20">
-              Despertar Narrativa
-            </Button>
-          </div>
-        ) : (
-          <div className="space-y-4 flex-1 flex flex-col overflow-hidden">
-            <ScrollArea ref={scrollRef} className="flex-1 pr-4 -mr-4">
-              <div className="space-y-6 pb-6 pt-2">
-                {history.map((step, idx) => {
-                  const isLast = idx === history.length - 1;
-                  return (
-                    <div key={idx} className="relative pl-6">
-                      {!isLast && <div className="absolute left-[11px] top-6 bottom-[-24px] w-0.5 bg-white/5" />}
-                      <div className={cn(
-                        "absolute left-0 top-1.5 w-6 h-6 rounded-full border flex items-center justify-center transition-all duration-500",
-                        isLast ? "bg-primary border-primary shadow-lg shadow-primary/30" : "bg-black/40 border-white/10"
-                      )}>
-                        {isLast ? <Zap size={10} className="text-white" /> : <div className="w-1 h-1 bg-white/20 rounded-full" />}
-                      </div>
-
-                      <div className={cn(
-                        "p-5 rounded-2xl border transition-all duration-500 group",
-                        isLast ? "bg-card/60 backdrop-blur-md border border-white/10 shadow-2xl" : "bg-black/20 border-white/5 opacity-70 hover:opacity-100"
-                      )}>
-                        <div className="flex justify-between items-start mb-2">
-                          <span className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground">Passo {idx + 1}</span>
-                          <div className="flex gap-1">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-6 w-6 text-accent hover:bg-accent/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onClick={() => chooseOption(`Ramificação do Passo ${idx + 1}`, step.narrativa)}
-                                  >
-                                    <GitBranch size={12} />
-                                  </Button>
-                                </TooltipTrigger>
-                                <TooltipContent><p className="text-[10px]">Ramificar narrativa deste ponto</p></TooltipContent>
-                              </Tooltip>
-                            </TooltipProvider>
-                          </div>
-                        </div>
-
-                        <p className="text-xs leading-relaxed font-body text-foreground/90 italic">
-                          "{step.narrativa}"
-                        </p>
-
-                        {step.detalheOculto && (
-                          <div className="mt-3 p-3 bg-accent/10 border border-accent/20 rounded-lg flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Zap size={14} className="text-accent animate-pulse" />
-                              <span className="text-[10px] font-bold text-accent uppercase tracking-tighter">DESCOBERTA: {step.detalheOculto}</span>
-                            </div>
-                            <div className="flex gap-1">
-                              <TooltipProvider>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6 text-accent hover:bg-accent/20"
-                                      onClick={() => onContextAction('narrative', {
-                                        messageContent: `Documento sobre: ${step.detalheOculto}. Contexto: ${step.narrativa}`,
-                                        documentType: 'documento'
-                                      })}
-                                    >
-                                      <PenTool size={12} />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p className="text-[10px]">Gerar Documento</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6 text-accent hover:bg-accent/20"
-                                      onClick={() => onContextAction('analysis', {
-                                        situation: step.narrativa,
-                                        npcs: step.detalheOculto
-                                      })}
-                                    >
-                                      <Search size={12} />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent><p className="text-[10px]">Analisar Contexto</p></TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6 text-lime-400 hover:bg-lime-400/20"
-                                      onClick={() => onContextAction('cartography', {
-                                        terrain: step.detalheOculto,
-                                        context: step.narrativa,
-                                        keyElements: "detalhes marcantes descritos na narrativa"
-                                      })}
-                                    >
-                                      <Map size={12} />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-[10px]">Gerar Battlegrid para este Local</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6 text-sky-400 hover:bg-sky-400/20"
-                                      onClick={() => onContextAction('entities', {
-                                        type: step.tipoDescoberta === 'location' ? 'location' : 'npc',
-                                        name: step.detalheOculto,
-                                        context: step.narrativa
-                                      })}
-                                    >
-                                      {step.tipoDescoberta === 'location' ? <MapPin size={12} /> : <Users size={12} />}
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>
-                                    <p className="text-[10px]">Manifestar {step.tipoDescoberta === 'location' ? 'Local' : 'NPC'} no Grimório</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                              </TooltipProvider>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollArea>
-
-            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-500 border-t border-white/5 pt-4 bg-card/40 -mx-6 px-6 pb-2">
-              <div className="flex items-center gap-2 mb-2">
-                <ChevronDown size={14} className="text-accent" />
-                <span className="text-[9px] font-bold text-accent uppercase tracking-widest">Próximas Ramificações</span>
-              </div>
-              <div className="grid grid-cols-1 gap-2">
-                {lastStep?.opcoes.map((opt, i) => (
-                  <div key={i} className="flex gap-1 animate-in fade-in slide-in-from-right-2" style={{ animationDelay: `${i * 100}ms` }}>
-                    <Button
-                      variant="outline"
-                      className="flex-1 h-auto py-3 px-4 flex flex-col items-start gap-1 border-white/10 bg-white/5 hover:bg-accent/10 hover:border-accent/50 transition-all text-left group"
-                      onClick={() => chooseOption(opt.label)}
-                    >
-                      <div className="flex w-full justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-accent group-hover:text-white transition-colors">{opt.label}</span>
-                          {opt.label.toLowerCase().includes('saquear') || opt.label.toLowerCase().includes('pegar') || opt.label.toLowerCase().includes('loot') ? (
-                            <Package size={10} className="text-amber-500 animate-pulse" />
-                          ) : null}
-                        </div>
-                        <span className={cn(
-                          "text-[8px] px-1.5 py-0.5 rounded border font-bold uppercase",
-                          opt.difficulty === 'Mortal' ? 'bg-red-500/20 text-red-500 border-red-500/50' :
-                            opt.difficulty === 'Difícil' ? 'bg-orange-500/20 text-orange-500 border-orange-500/50' :
-                              'bg-green-500/20 text-green-500 border-green-500/50'
-                        )}>
-                          {opt.difficulty}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-muted-foreground line-clamp-1 group-hover:text-muted-foreground/80">{opt.description}</span>
-                    </Button>
-                    {opt.roll20Macro && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="w-10 h-auto border-white/10 bg-black/40 hover:text-accent hover:border-accent/50"
-                              onClick={() => copyMacro(opt.roll20Macro!)}
-                            >
-                              {copiedMacro === opt.roll20Macro ? <Check size={14} className="text-green-500" /> : <Terminal size={14} />}
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent><p className="text-[10px]">Macro Roll20: {opt.roll20Macro}</p></TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-2 items-center pt-2">
-                <Input
-                  placeholder="Ou tome uma ação livre..."
-                  value={customInput}
-                  onChange={(e) => setCustomInput(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && customInput.trim() && chooseOption('Ação Livre')}
-                  className="h-9 text-[10px] bg-black/40 border-white/10 focus:border-primary/50"
-                />
-                <Button
-                  size="sm"
-                  onClick={() => chooseOption('Ação Livre')}
-                  disabled={!customInput.trim()}
-                  className="h-9 w-9 p-0 bg-primary shadow-lg shadow-primary/20"
-                >
-                  <Plus size={16} />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center pt-2 border-t border-white/5">
-              <Button variant="ghost" size="sm" onClick={resetHistory} className="text-[9px] h-6 text-muted-foreground hover:text-destructive gap-1">
-                <History size={10} /> Limpar Árvore Narrativa
-              </Button>
-              {lastStep?.sugestaoMecanica && (
-                <div className="text-[9px] text-accent font-bold px-2 py-1 bg-accent/5 rounded border border-accent/20 flex items-center gap-1">
-                  <Info size={10} /> {lastStep.sugestaoMecanica}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      }
-
-      {/* --- End Session Modal --- */}
       <Dialog open={isEndSessionModalOpen} onOpenChange={setIsEndSessionModalOpen}>
         <DialogContent className="sm:max-w-[500px] bg-card/95 backdrop-blur-xl border-white/10">
           <DialogHeader className="mb-4">
-            <DialogTitle className="font-[Fira_Code] text-xl text-accent flex items-center gap-2">
+            <DialogTitle className="font-headline text-xl text-accent flex items-center gap-2">
               <Scroll size={20} className="text-primary" />
               Encerrar Sessão {currentSessionNumber}
             </DialogTitle>
@@ -1136,7 +966,7 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
                 Anotações Finais do Mestre (Opção Livre)
               </label>
               <Textarea
-                placeholder="Ex: No fim, eles decidiram roubar os cavalos e fugir para a cidade vizinha. O mago quase morreu."
+                placeholder="Ex: No fim, eles decidiram roubar os cavalos e fugir para a cidade vizinha..."
                 value={dmNotes}
                 onChange={e => setDmNotes(e.target.value)}
                 className="h-24 resize-none bg-black/40 border-white/10 text-xs focus:border-primary/50"
@@ -1154,6 +984,6 @@ export function LiveSessionTool({ partyInfo, activeSession, onContextAction, set
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div >
+    </div>
   );
 }

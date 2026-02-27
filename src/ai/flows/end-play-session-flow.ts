@@ -17,6 +17,12 @@ const EndPlaySessionInputSchema = z.object({
     dmNotes: z
         .string()
         .describe('Anotações finais improvisadas pelo Mestre sobre o que rolou no final da sessão.'),
+    currentConflicts: z
+        .array(z.string())
+        .describe('Lista de conflitos ativos atualmente no mundo (antes desta sessão).'),
+    currentRumors: z
+        .array(z.object({ rumor: z.string(), truthLevel: z.string(), source: z.string() }))
+        .describe('Tabela de boatos atual do mundo (antes desta sessão).')
 });
 export type EndPlaySessionInput = z.infer<typeof EndPlaySessionInputSchema>;
 
@@ -27,6 +33,16 @@ const EndPlaySessionOutputSchema = z.object({
     nextSessionHook: z
         .string()
         .describe('Um gancho claro sugerindo onde a próxima sessão deve começar (Ex: "A sessão 2 começará com os heróis diante da porta do Rei").'),
+    newActiveConflicts: z
+        .array(z.string())
+        .describe('A lista ATUALIZADA de conflitos. Remova os que foram resolvidos nesta sessão e adicione novos baseados nas consequências das ações dos jogadores.'),
+    newRumorTable: z
+        .array(z.object({
+            rumor: z.string(),
+            truthLevel: z.enum(['true', 'false', 'partial']),
+            source: z.string()
+        }))
+        .describe('Tabela D10 de boatos NOVINHA. Mantenha os não resolvidos (se úteis) e crie novos baseados no que os heróis fizeram. As pessoas fofocam!'),
 });
 export type EndPlaySessionOutput = z.infer<typeof EndPlaySessionOutputSchema>;
 
@@ -57,8 +73,24 @@ Passos/Turnos que rolaram (Em Ordem Cronológica):
 Anotações Finais do Mestre (Imediatas, o que aconteceu no final que não estava no log):
 {{{dmNotes}}}
 
+---
+Conflitos Ativos (Início da Sessão):
+{{#each currentConflicts}}
+- {{this}}
+{{/each}}
+
+Boatos (Início da Sessão):
+{{#each currentRumors}}
+- {{this.rumor}} ({{this.truthLevel}}) - Fonte: {{this.source}}
+{{/each}}
+
+
 Crie o \`finalSummary\` misturando todos esses elementos numa narrativa coesa e épica.
 E gere um \`nextSessionHook\` prático para o Mestre saber onde ele deve dar o "Play" na semana que vem.
+
+MUITO IMPORTANTE: Baseado nas ações dos jogadores (finalSummary e turnLogs), atualize os \`newActiveConflicts\` e a \`newRumorTable\`. 
+- Se os jogadores mataram um lorde, o boato na rua amanhã será sobre o assassinato. 
+- Se eles resolveram uma seca, esse conflito some de "newActiveConflicts" e surge um novo sobre o vácuo de poder na guilda das águas.
 
 Em português brasileiro.`,
 });

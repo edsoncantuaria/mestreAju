@@ -12,7 +12,6 @@ const GenerateWorldRegionInputSchema = z.object({
    biome: z.string().optional().describe('Bioma ou tema geográfico desejado (ex: Gélido, Estepe, Floresta Sombria).'),
    additionalContext: z.string().optional().describe('Diretrizes extras do Mestre (ex: "Quero uma guerra civil em andamento com dois pretendentes ao trono").'),
    expandLayers: z.boolean().optional().describe('MODO PROFUNDO: aprofunda economia, mapa político e simula 1 ano de evolução do mundo.'),
-   narrativeStyle: z.enum(['minimalist', 'immersive', 'theatrical']).optional().describe('Estilo de narração: minimalist (direto), immersive (sensorial), theatrical (dramático).'),
 });
 export type GenerateWorldRegionInput = z.infer<typeof GenerateWorldRegionInputSchema>;
 export type GenerateWorldRegionOutput = z.infer<typeof RegionDataSchema>;
@@ -93,6 +92,9 @@ ESTRUTURA OBRIGATÓRIA:
 ## 📜 Missões Iniciais (Quests)
 (Gere EXATAMENTE 3 missões estruturadas que sirvam de ponto de partida. Cada missão DEVE obrigatoriamente referenciar pelo menos um NPC e uma Localidade gerados acima, criando um "Grafo de Conexão". Defina o gancho, o objetivo principal e as recompensas específicas).
 
+## 🛠 Sessão 0 (Campaign Genesis)
+(Defina os pilares da campanha, ferramentas de segurança/gatilhos recomendados, expectativas de comportamento e ganchos de criação de personagens que façam sentido neste lore).
+
 {{#if biome}}
 **Bioma ou Tema Geográfico:**
 {{{biome}}}
@@ -112,13 +114,6 @@ ESTRUTURA OBRIGATÓRIA:
 {{/if}}
 
 Responda EXCLUSIVAMENTE em Português Brasileiro.
-
-{{#if narrativeStyle}}
-**ESTILO NARRATIVO REQUERIDO: {{narrativeStyle}}**
-- Se "minimalist": Descrições curtas, factuais e diretas. Foque no que é, não no que parece.
-- Se "immersive": Descrições ricas, sensoriais (cheiro, som, luz) e atmosféricas.
-- Se "theatrical": Foque no drama, impacto emocional e frases de efeito.
-{{/if}}
 
 Sua resposta DEVE ser um objeto JSON que estritamente adere ao esquema de saída.`,
 });

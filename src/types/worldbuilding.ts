@@ -14,6 +14,14 @@ export const FactionSchema = z.object({
 });
 export type FactionData = z.infer<typeof FactionSchema>;
 
+export const SessionZeroSchema = z.object({
+  pillars: z.array(z.string()).describe('Pilares da campanha (Estilo de jogo)'),
+  safetyTools: z.array(z.string()).describe('Ferramentas de segurança e gatilhos'),
+  playerExpectations: z.string().describe('Expectativas para os jogadores'),
+  characterHooks: z.array(z.string()).describe('Ganchos iniciais para criação de personagens'),
+});
+export type SessionZeroData = z.infer<typeof SessionZeroSchema>;
+
 export const NpcSchema = z.object({
   id: z.string().optional(),
   name: z.string().describe('Nome do NPC'),
@@ -24,6 +32,7 @@ export const NpcSchema = z.object({
   controlledResource: z.string().describe('Recurso que o NPC controla (informação, exército, dinheiro, etc)'),
   relationships: z.array(z.string()).describe('Relação com outros NPCs ou facções'),
   consequenceOfDeath: z.string().describe('O que acontece na região se o NPC morrer ou sumir'),
+  imageUrl: z.string().optional().describe('URL da imagem ou retrato do NPC'),
   statBlock: z.object({
     alignment: z.string(),
     ac: z.number(),
@@ -59,6 +68,7 @@ export const LocationSchema = z.object({
   keyFeatures: z.array(z.string()).describe('Características marcantes do local'),
   hazards: z.array(z.object({ name: z.string(), desc: z.string() })).optional().describe('Perigos ambientais, armadilhas ou Lair Actions'),
   regionalEffects: z.array(z.string()).optional().describe('Efeitos regionais mágicos ou geográficos do local'),
+  imageUrl: z.string().optional().describe('URL da imagem do local'),
 });
 export type LocationData = z.infer<typeof LocationSchema>;
 
@@ -129,6 +139,7 @@ export const RegionDataSchema = z.object({
   npcs: z.array(NpcSchema).describe('Os NPCs chave (atores políticos, heróis, antagonistas)'),
   locations: z.array(LocationSchema).describe('Pontos de interesse da região'),
   quests: z.array(QuestSchema).describe('Missões iniciais que conectam NPCs e Localidades'),
+  sessionZero: SessionZeroSchema.describe('Dados para a Sessão 0 da campanha'),
 });
 
 export type RegionWorldbuildingData = z.infer<typeof RegionDataSchema>;

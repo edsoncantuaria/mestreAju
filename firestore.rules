@@ -72,28 +72,28 @@ service cloud.firestore {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
           allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isOwner(userId);
         }
 
         match /battlemaps/{mapId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
           allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isOwner(userId);
         }
 
         match /routes/{routeId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
           allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isOwner(userId);
         }
 
         match /quests/{questId} {
           allow get, list: if isOwner(userId);
           allow create: if isOwner(userId) && validatesInternalOwner();
           allow update: if isExistingOwner(userId) && validatesInternalOwner() && isFieldImmutable('ownerId');
-          allow delete: if isExistingOwner(userId);
+          allow delete: if isOwner(userId);
         }
       }
     }
