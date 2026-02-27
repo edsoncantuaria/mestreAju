@@ -2,6 +2,8 @@
 /**
  * @fileOverview Genkit flows for generating a D&D 5e World Region in 3 stages.
  * Implements the Professional World Design System specification.
+ * 
+ * UPGRADED: Using Gemini 1.5 Pro for complex worldbuilding steps due to large Zod schemas.
  */
 
 import { ai } from '@/ai/genkit';
@@ -32,7 +34,7 @@ REGRAS ABSOLUTAS:
 4. Responda EXCLUSIVAMENTE em Português Brasileiro.`;
 
 // ==========================================
-// 1. FOUNDATION FLOW
+// 1. FOUNDATION FLOW (Using Pro Model)
 // ==========================================
 export const generateWorldFoundationFlow = ai.defineFlow(
    {
@@ -42,7 +44,7 @@ export const generateWorldFoundationFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'googleai/gemini-2.5-flash',
+         model: 'googleai/gemini-1.5-pro',
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 1: CRIAR AS BASES DO MUNDO (Fundação Histórica, Política e Religiosa).
          
@@ -62,7 +64,7 @@ Sua tarefa é focar exclusivamente no panorama macro da região. Elabore os conf
 
 
 // ==========================================
-// 2. ENTITIES FLOW
+// 2. ENTITIES FLOW (Using Pro Model)
 // ==========================================
 const EntitiesInputSchema = BaseInputSchema.extend({
    foundationData: z.any().describe('JSON das fundações da Etapa 1'),
@@ -76,7 +78,7 @@ export const generateWorldEntitiesFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'googleai/gemini-2.5-flash',
+         model: 'googleai/gemini-1.5-pro',
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 2: POVOAR O MUNDO (Facções, NPCs e Locais).
          
@@ -103,7 +105,7 @@ Sua tarefa:
 
 
 // ==========================================
-// 3. GAMEPLAY FLOW
+// 3. GAMEPLAY FLOW (Using Pro Model)
 // ==========================================
 const GameplayInputSchema = BaseInputSchema.extend({
    foundationData: z.any(),
@@ -118,7 +120,7 @@ export const generateWorldGameplayFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'googleai/gemini-2.5-flash',
+         model: 'googleai/gemini-1.5-pro',
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 3: GERAR GAMEPLAY (Rumores, Encontros, Quests, Loot e Sessão 0).
          
