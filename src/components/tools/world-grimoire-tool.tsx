@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Search, MapPin, Map as MapIcon, Users, Shield as ShieldIcon, Hash, ChevronRight, Globe, Coins, ScrollText, Hourglass, Zap, Dices, Sparkles, ShieldAlert, Newspaper, Anchor, Flame, Lock, Plus, PenTool, Image as ImageIcon, Copy, Download, Link2 } from 'lucide-react';
+import { Search, MapPin, Map as MapIcon, Users, Shield as ShieldIcon, Hash, ChevronRight, Globe, Coins, ScrollText, Hourglass, Zap, Dices, Sparkles, ShieldAlert, Newspaper, Anchor, Flame, Lock, Plus, PenTool, Image as ImageIcon, Copy, Download, Link2, Eye, EyeOff } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -25,8 +25,8 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
     const db = useFirestore();
 
     const campaignPath = user && activeSession?.campaignId
-        ? `users/${user.uid}/campaigns/${activeSession.campaignId}`
-        : user ? `users/${user.uid}/campaigns/default-campaign` : null;
+        ? `users / ${user.uid} /campaigns/${activeSession.campaignId} `
+        : user ? `users / ${user.uid} /campaigns/default - campaign` : null;
 
     const factionsQuery = useMemoFirebase(() => user ? query(collection(db, `${campaignPath}/factions`), orderBy('name')) : null, [db, user, campaignPath]);
     const { data: factionsRaw } = useCollection(factionsQuery);
@@ -269,24 +269,24 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                     <div className="flex-1 overflow-y-auto p-2 space-y-1 custom-scrollbar">
                         {entities.map((item: any) => (
                             <button
-                                key={item.id || item.name}
+                                key={item.id || item.name || item.title}
                                 onClick={() => setSelectedEntityDoc(item)}
                                 className={cn(
                                     "w-full text-left px-3 py-3 rounded-lg flex items-center justify-between group transition-colors",
-                                    selectedEntityDoc?.name === item.name
+                                    selectedEntityDoc?.id === item.id
                                         ? "bg-white/10 border border-white/10"
                                         : "hover:bg-white/5 border border-transparent"
                                 )}
                             >
                                 <div className="flex flex-col truncate pr-2">
-                                    <span className="font-bold text-sm text-foreground truncate">{item.name}</span>
+                                    <span className="font-bold text-sm text-foreground truncate">{item.name || item.title}</span>
                                     <span className="text-[10px] text-muted-foreground truncate opacity-70">
-                                        {item.role || item.type || item.ideology || 'Unknown'}
+                                        {item.role || item.type || item.ideology || item.status || 'Desconhecido'}
                                     </span>
                                 </div>
                                 <ChevronRight size={14} className={cn(
                                     "transition-transform",
-                                    selectedEntityDoc?.name === item.name ? "text-accent translate-x-1" : "text-muted-foreground/30 group-hover:text-muted-foreground"
+                                    selectedEntityDoc?.id === item.id ? "text-accent translate-x-1" : "text-muted-foreground/30 group-hover:text-muted-foreground"
                                 )} />
                             </button>
                         ))}
@@ -355,8 +355,8 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                                     variant="outline"
                                     className="h-20 flex-col gap-2 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/15 hover:border-emerald-500/50 text-xs text-white/90"
                                     onClick={() => {
-                                        if (user && activeSession?.id) {
-                                            const url = `${window.location.origin}/player-view/${user.uid}_${activeSession.id}`;
+                                        if (user && activeSession?.id && activeSession?.campaignId) {
+                                            const url = `${window.location.origin}/player-view/${user.uid}_${activeSession.campaignId}_${activeSession.id}`;
                                             navigator.clipboard.writeText(url);
                                             // Optional: Toast notification here if you have a toast function available
                                         }
@@ -574,30 +574,36 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                             <div className="space-y-2">
                                 {isEditing ? (
                                     <Input
-                                        value={editedData.name}
-                                        onChange={e => setEditedData({ ...editedData, name: e.target.value })}
+                                        value={editedData.name || editedData.title || ''}
+                                        onChange={e => {
+                                            if (activeTab === 'quests') {
+                                                setEditedData({ ...editedData, title: e.target.value });
+                                            } else {
+                                                setEditedData({ ...editedData, name: e.target.value });
+                                            }
+                                        }}
                                         className="text-4xl font-headline font-bold bg-black/40 border-white/10 h-14"
                                     />
                                 ) : (
                                     <h2 className="text-4xl font-headline font-bold text-white tracking-tight">
-                                        {selectedEntityDoc.name}
+                                        {selectedEntityDoc.name || selectedEntityDoc.title}
                                     </h2>
                                 )}
 
                                 {isEditing ? (
                                     <Input
-                                        value={editedData.role || editedData.type || editedData.ideology || ''}
+                                        value={editedData.role || editedData.type || editedData.ideology || editedData.status || ''}
                                         onChange={e => {
                                             const val = e.target.value;
-                                            const key = activeTab === 'npcs' ? 'role' : activeTab === 'locations' ? 'type' : 'ideology';
+                                            const key = activeTab === 'npcs' ? 'role' : activeTab === 'locations' ? 'type' : activeTab === 'quests' ? 'status' : 'ideology';
                                             setEditedData({ ...editedData, [key]: val });
                                         }}
                                         className="text-xl text-accent font-headline italic bg-black/40 border-white/10"
-                                        placeholder="Subtítulo / Função"
+                                        placeholder="Subtítulo / Função / Status"
                                     />
                                 ) : (
                                     <p className="text-xl text-accent font-headline italic">
-                                        {selectedEntityDoc.role || selectedEntityDoc.type || selectedEntityDoc.ideology}
+                                        {selectedEntityDoc.role || selectedEntityDoc.type || selectedEntityDoc.ideology || selectedEntityDoc.status}
                                     </p>
                                 )}
                             </div>
@@ -782,7 +788,7 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                                             size="sm"
                                             className="h-7 text-[9px] uppercase font-bold text-primary hover:bg-primary/10"
                                             onClick={() => {
-                                                const prompt = `Battlemap: ${selectedEntityDoc.name}. Type: ${selectedEntityDoc.type}. Description: ${selectedEntityDoc.description}. Features: ${selectedEntityDoc.keyFeatures?.join(', ')}. Hazards: ${selectedEntityDoc.hazards?.join(', ')}. Atmosphere: ${selectedEntityDoc.regionalEffects?.join('; ')}. Style: Professional D&D 5e official battlemap, high detail, gridded.`;
+                                                const prompt = `Battlemap: ${selectedEntityDoc.name}. Type: ${selectedEntityDoc.type}. Description: ${selectedEntityDoc.description}. Features: ${selectedEntityDoc.keyFeatures?.join(', ')}. Hazards: ${selectedEntityDoc.hazards?.join(', ')}. Atmosphere: ${selectedEntityDoc.regionalEffects?.join('; ')}. Style: Professional D&D 5e official battlemap, high detail. CRITICAL: Strict Top-down orthogonal perspective (camera looking directly down). NO GRID (gridless) for VTT usage.`;
                                                 navigator.clipboard.writeText(prompt);
                                                 // We could also trigger a context action here if needed
                                             }}
@@ -820,6 +826,28 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                                                                 "border-accent/30 bg-accent/10 text-accent"
                                                     )}>
                                                         {selectedEntityDoc.status || 'active'}
+                                                    </Badge>
+                                                )}
+                                                {isEditing ? (
+                                                    <button
+                                                        onClick={() => setEditedData({ ...editedData, isPublic: !editedData.isPublic })}
+                                                        className={cn(
+                                                            "ml-2 flex items-center gap-1 text-[9px] font-bold uppercase px-2 py-0.5 rounded border transition-colors",
+                                                            editedData.isPublic
+                                                                ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                                                : "border-white/10 bg-black/40 text-muted-foreground"
+                                                        )}
+                                                    >
+                                                        {editedData.isPublic ? <><Eye size={10} /> Pública</> : <><EyeOff size={10} /> Oculta</>}
+                                                    </button>
+                                                ) : (
+                                                    <Badge variant="outline" className={cn(
+                                                        "ml-2 text-[9px] uppercase font-bold px-2 py-0.5 flex items-center gap-1",
+                                                        selectedEntityDoc.isPublic
+                                                            ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                                                            : "border-white/10 bg-black/40 text-muted-foreground"
+                                                    )}>
+                                                        {selectedEntityDoc.isPublic ? <><Eye size={10} /> Pública</> : <><EyeOff size={10} /> Oculta</>}
                                                     </Badge>
                                                 )}
                                                 {isEditing ? (

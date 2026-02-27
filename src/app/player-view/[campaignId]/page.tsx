@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getFirestore, doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { initializeFirebase } from '@/firebase';
-import { BookOpen, Map as MapIcon, Users, Castle, Flame, Hash, Shield } from 'lucide-react';
+import { BookOpen, Map as MapIcon, Users, Castle, Flame, Hash, Shield, ScrollText } from 'lucide-react';
 
 export default function PlayerView() {
     const params = useParams();
@@ -14,9 +14,10 @@ export default function PlayerView() {
     const [npcs, setNpcs] = useState<any[]>([]);
     const [locations, setLocations] = useState<any[]>([]);
     const [factions, setFactions] = useState<any[]>([]);
+    const [quests, setQuests] = useState<any[]>([]);
 
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'lore' | 'npcs' | 'locations' | 'factions'>('lore');
+    const [activeTab, setActiveTab] = useState<'lore' | 'map' | 'quests' | 'npcs' | 'locations' | 'factions'>('lore');
     const [selectedEntity, setSelectedEntity] = useState<any>(null);
 
     useEffect(() => {
@@ -35,21 +36,34 @@ export default function PlayerView() {
                 // For now, let's implement a placeholder that tells the user we need their UID in the URL 
                 // OR we use a collectionGroup query (which requires an index).
 
-                // Assuming we use a URL like /player-view/USER_ID_CAMPAIGN_ID
+                // Assuming we use a URL like /player-view/USER_ID_CAMPAIGN_ID_SESSION_ID
                 const parts = campaignId.split('_');
-                if (parts.length < 2) {
+                if (parts.length < 3) {
                     setLoading(false);
                     return;
                 }
                 const uid = parts[0];
-                const campId = parts.slice(1).join('_');
+                const campId = parts[1];
+                const sessionId = parts.slice(2).join('_');
 
                 const { firestore: db } = initializeFirebase();
                 const campaignRef = doc(db, `users/${uid}/campaigns/${campId}`);
                 const campSnap = await getDoc(campaignRef);
 
-                if (campSnap.exists()) {
-                    setCampaign(campSnap.data());
+                const sessionRef = doc(db, `users/${uid}/campaigns/default-campaign/sessions/${sessionId}`);
+                const sessionSnap = await getDoc(sessionRef);
+
+                if (campSnap.exists() && sessionSnap.exists()) {
+                    const sessionData = sessionSnap.data();
+                    const campData = campSnap.data();
+
+                    // Merge session override data into campaign data for the view
+                    setCampaign({
+                        ...campData,
+                        worldLore: sessionData.worldLore || campData.worldLore,
+                        activeConflicts: sessionData.activeConflicts || campData.activeConflicts,
+                        overview: campData.overview || {}
+                    });
 
                     const npcsSnap = await getDocs(collection(db, `users/${uid}/campaigns/${campId}/npcs`));
                     setNpcs(npcsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
@@ -59,6 +73,9 @@ export default function PlayerView() {
 
                     const factionSnap = await getDocs(collection(db, `users/${uid}/campaigns/${campId}/factions`));
                     setFactions(factionSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+                    const questsSnap = await getDocs(collection(db, `users/${uid}/campaigns/${campId}/quests`));
+                    setQuests(questsSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter((q: any) => q.isPublic === true));
                 }
             } catch (e) {
                 console.error("Error fetching player view data:", e);
@@ -76,12 +93,15 @@ export default function PlayerView() {
 
     const tabs = [
         { id: 'lore', label: 'História', icon: BookOpen },
+        { id: 'map', label: 'Mapa', icon: MapIcon },
+        { id: 'quests', label: 'Missões', icon: ScrollText },
         { id: 'npcs', label: 'Personagens', icon: Users },
         { id: 'locations', label: 'Lugares', icon: MapIcon },
         { id: 'factions', label: 'Facções', icon: Castle },
     ];
 
     const getList = () => {
+        if (activeTab === 'quests') return quests;
         if (activeTab === 'npcs') return npcs;
         if (activeTab === 'locations') return locations;
         if (activeTab === 'factions') return factions;
@@ -153,7 +173,39 @@ export default function PlayerView() {
                         </div>
                     )}
 
-                    {activeTab !== 'lore' && (
+                    {activeTab === 'map' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div>
+                                <h2 className="text-3xl font-headline font-bold text-white tracking-tight mb-2">Cartografia do Mundo</h2>
+                                <p className="text-muted-foreground">O mapa conhecido do seu destino.</p>
+                            </div>
+
+                            {campaign.mapImageUrl ? (
+                                <div className="rounded-2xl overflow-hidden border border-white/10 shadow-2xl bg-black/40">
+                                    <img
+                                        src={campaign.mapImageUrl}
+                                        alt="Mapa do Mundo"
+                                        className="w-full h-auto object-contain cursor-crosshair"
+                                        onClick={() => window.open(campaign.mapImageUrl, '_blank')}
+                                    />
+                                </div>
+                            ) : (
+                                <div className="aspect-video w-full rounded-2xl border-2 border-dashed border-white/5 flex flex-col items-center justify-center text-muted-foreground/30 bg-white/[0.02]">
+                                    <MapIcon size={48} className="mb-4 opacity-10" />
+                                    <p className="font-headline tracking-widest uppercase text-xs">Mapa Indisponível</p>
+                                </div>
+                            )}
+
+                            {campaign.mapDescription && (
+                                <div className="bg-white/5 p-6 rounded-2xl border border-white/5 space-y-3">
+                                    <h4 className="text-[10px] font-bold text-primary uppercase tracking-widest">Geografia Conhecida</h4>
+                                    <p className="text-sm text-muted-foreground leading-relaxed italic">{campaign.mapDescription}</p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {activeTab !== 'lore' && activeTab !== 'map' && (
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500 h-[calc(100vh-160px)]">
                             {/* List */}
                             <div className="lg:col-span-1 space-y-2 overflow-y-auto pr-2 custom-scrollbar">
@@ -163,9 +215,9 @@ export default function PlayerView() {
                                         onClick={() => setSelectedEntity(item)}
                                         className={`w-full text-left p-4 rounded-xl transition-all border ${selectedEntity?.id === item.id ? 'bg-white/10 border-white/20' : 'bg-black/20 border-white/5 hover:border-white/10 hover:bg-white/5'}`}
                                     >
-                                        <h3 className="font-headline font-bold text-white truncate">{item.name}</h3>
+                                        <h3 className="font-headline font-bold text-white truncate">{item.name || item.title}</h3>
                                         <p className="text-xs text-muted-foreground truncate uppercase tracking-widest mt-1">
-                                            {item.role || item.type || item.ideology}
+                                            {item.role || item.type || item.ideology || item.status}
                                         </p>
                                     </button>
                                 ))}
@@ -187,13 +239,33 @@ export default function PlayerView() {
                                                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
                                                 </div>
                                             )}
-                                            <h2 className="text-4xl font-headline font-bold text-white tracking-tight">{selectedEntity.name}</h2>
-                                            <p className="text-xl text-accent font-headline italic">{selectedEntity.role || selectedEntity.type || selectedEntity.ideology}</p>
+                                            <h2 className="text-4xl font-headline font-bold text-white tracking-tight">{selectedEntity.name || selectedEntity.title}</h2>
+                                            <p className="text-xl text-accent font-headline italic">{selectedEntity.role || selectedEntity.type || selectedEntity.ideology || selectedEntity.status}</p>
                                         </header>
 
-                                        <div className="prose prose-invert prose-sm max-w-none text-muted-foreground/90">
-                                            <p>{selectedEntity.description}</p>
-                                        </div>
+                                        {selectedEntity.description && (
+                                            <div className="prose prose-invert prose-sm max-w-none text-muted-foreground/90">
+                                                <p>{selectedEntity.description}</p>
+                                            </div>
+                                        )}
+
+                                        {activeTab === 'quests' && (
+                                            <div className="space-y-6">
+                                                <div className="bg-white/5 p-4 rounded-xl border border-white/5">
+                                                    <h4 className="text-[10px] font-bold text-white uppercase tracking-widest mb-2">Objetivo da Missão</h4>
+                                                    <p className="text-sm text-muted-foreground">{selectedEntity.objective}</p>
+                                                </div>
+
+                                                {selectedEntity.rewards && selectedEntity.rewards.length > 0 && (
+                                                    <div className="space-y-2">
+                                                        <h4 className="text-[10px] font-bold text-accent uppercase tracking-widest">Recompensas</h4>
+                                                        <ul className="list-disc list-inside text-sm text-accent/80 space-y-1">
+                                                            {selectedEntity.rewards.map((r: string, i: number) => <li key={i}>{r}</li>)}
+                                                        </ul>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
 
                                         {/* Public Goal / Key Features */}
                                         {activeTab === 'npcs' && selectedEntity.publicGoal && (

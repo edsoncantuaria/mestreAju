@@ -79,6 +79,7 @@ export const QuestSchema = z.object({
   keyNpcs: z.array(z.string()).describe('Nomes dos NPCs chaves envolvidos'),
   keyLocations: z.array(z.string()).describe('Nomes dos locais chaves envolvidos'),
   rewards: z.array(z.string()).describe('Recompensas e tesouros específicos desta missão'),
+  isPublic: z.boolean().optional().describe('Se a quest é visível para os jogadores no portal'),
 });
 export type QuestData = z.infer<typeof QuestSchema>;
 

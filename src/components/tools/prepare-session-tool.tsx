@@ -281,6 +281,22 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatingMessage, setGeneratingMessage] = useState('');
 
+  const handleEpicFantasyPreset = () => {
+    setFormData({
+      title: 'A Queda do Rei Tirano',
+      mapDescription: 'Um continente ancestral dividido entre um império humano expansionista ao sul, florestas élficas intocadas a oeste e as impenetráveis montanhas dos anões ao norte. O reino é pontilhado com masmorras antigas e ruínas de eras passadas.',
+      mapImageUrl: '',
+      worldLore: 'Uma legítima campanha de RPG High Fantasy e Medieval Clássico (Estilo D&D raiz). O mundo é vibrante, perigoso e focado em combates épicos, exploração selvagem (hexcrawl) e grandes missões em masmorras (dungeon crawling). A magia é abundante, o panteão de deuses intervém diretamente, e grandes monstros clássicos de lendas andam pelos ermos ameaçando inocentes. Nos bastidores, há uma densa e complexa teia de intriga política entre cortes nobres, impérios corruptos, guildas de mercenários, ordens místicas e cultos profanos. Os aventureiros costumam crescer até tomarem controle do destino geopolítico do mundo.',
+      currentAgendas: ''
+    });
+    setGuidedChoices({});
+    setDraftTitle('A Queda do Rei Tirano');
+    toast({
+      title: "Pronto para Aventurar",
+      description: "Parâmetros High Fantasy clássicos carregados!",
+    });
+  };
+
   const handleChoice = (stepId: string, choice: any) => {
     const updatedChoices = { ...guidedChoices, [stepId]: choice };
     setGuidedChoices(updatedChoices);
@@ -369,12 +385,38 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
       const sessionPath = `users/${user.uid}/campaigns/default-campaign/sessions/${sessionId}`;
       const sessionDocRef = doc(db, sessionPath);
 
+      const richWorldLore = `
+# ${result.overview?.name || formData.title}
+*Bioma: ${result.overview?.biome}*
+
+## 📜 Visão Geral
+**Economia:** ${result.overview?.economy}
+**Conflitos Relatados:** ${result.overview?.structuralConflicts}
+
+## 🏛 Política e História
+**História Antiga:** ${result.history?.ancient}
+**História Recente:** ${result.history?.recent}
+**Evento Fundador:** ${result.history?.foundingEvent}
+**Estrutura de Governo:** ${result.politics?.structure}
+**Tensões Sociais:** ${result.politics?.socialTensions}
+
+## ⛪ Religião
+**Deuses Dominantes:** ${result.religion?.dominantGods?.join(', ')}
+**Influência:** ${result.religion?.influence}
+**Conflitos:** ${result.religion?.conflicts}
+
+## ⚔ Aspectos Vivos
+**Conflitos Ativos:** ${result.activeConflicts?.join(' • ')}
+**Ganchos de Aventura:** ${result.adventureHooks?.join(' • ')}
+**Segredos do Mundo (Mestre):** ${result.worldSecrets?.join(' • ')}
+`;
+
       const dataToSave = {
         title: formData.title,
         campaignId: campaignId,
         ownerId: user.uid,
         id: sessionId,
-        worldLore: formData.worldLore,
+        worldLore: richWorldLore.trim(),
         rumorTable: result.rumorTable || [],
         thematicEncounters: result.thematicEncounters || [],
         lootPatterns: result.lootPatterns || [],
@@ -476,17 +518,26 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                 <div className="space-y-0.5">
                   <h3 className="text-[10px] font-bold text-accent uppercase tracking-widest">Configuração da Crônica</h3>
                 </div>
-                <Button
-                  onClick={() => {
-                    setIsGuided(true);
-                    setCurrentStep(0);
-                    setGuidedChoices({});
-                    setDraftTitle(formData.title);
-                  }}
-                  className="h-8 bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 text-[10px] uppercase font-bold tracking-widest gap-2"
-                >
-                  <Sparkles size={12} /> Gênese Profunda
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleEpicFantasyPreset}
+                    variant="outline"
+                    className="h-8 border-amber-500/30 text-amber-500 hover:bg-amber-500/10 text-[10px] uppercase font-bold tracking-widest gap-2"
+                  >
+                    <SwordIcon size={12} /> D&D Clássico
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setIsGuided(true);
+                      setCurrentStep(0);
+                      setGuidedChoices({});
+                      setDraftTitle(formData.title);
+                    }}
+                    className="h-8 bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 text-[10px] uppercase font-bold tracking-widest gap-2"
+                  >
+                    <Sparkles size={12} /> Gênese Profunda
+                  </Button>
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -553,9 +604,9 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
           )}
         </div>
       ) : (
-        <div className="space-y-6 animate-in slide-in-from-right-4 duration-500 flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 pr-4">
-            <div className="space-y-4">
+        <div className="animate-in slide-in-from-right-4 duration-500 flex-1 flex flex-col min-h-0 h-full overflow-hidden">
+          <ScrollArea className="flex-1 pr-4 h-full">
+            <div className="space-y-6 pb-4">
               <div className="p-4 bg-accent/5 border border-accent/20 rounded-2xl italic text-xs text-muted-foreground">
                 <h4 className="font-bold text-accent mb-2 uppercase tracking-widest flex items-center gap-2">
                   <BookOpen size={14} /> Resumo do Mundo
@@ -902,10 +953,12 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                   </ul>
                 </CardContent>
               </Card>
+
+              <div className="pb-4"></div>
             </div>
           </ScrollArea>
 
-          <div className="flex gap-2 pt-4 border-t border-white/5 mt-auto">
+          <div className="flex gap-2 pt-4 border-t border-white/5 mt-auto bg-background/95 backdrop-blur shrink-0">
             <Button variant="outline" className="flex-1 h-14 rounded-xl" onClick={() => setResult(null)}>
               <ArrowLeft size={16} className="mr-2" /> Ajustar
             </Button>
@@ -913,7 +966,7 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
               onClick={handleFinishAndSave}
               className="flex-[2] bg-accent text-accent-foreground hover:bg-accent/90 font-headline h-14 rounded-xl text-lg shadow-2xl shadow-accent/20 gap-3"
             >
-              <Save size={24} />
+              <Sparkles size={24} className="animate-pulse" />
               INICIAR NOVA SESSÃO
             </Button>
           </div>

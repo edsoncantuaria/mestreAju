@@ -13,6 +13,13 @@ const ExpandWorldLoreInputSchema = z.object({
     topic: ExpansionTopicSchema.describe('Qual tópico deve ser expandido.'),
 });
 
+const ExpandWorldLorePromptInputSchema = ExpandWorldLoreInputSchema.extend({
+    isEconomy: z.boolean(),
+    isPolitics: z.boolean(),
+    isSimulation: z.boolean(),
+    isConsequences: z.boolean(),
+});
+
 export type ExpandWorldLoreInput = z.infer<typeof ExpandWorldLoreInputSchema>;
 
 export type ExpandWorldLoreOutput = {
@@ -25,7 +32,7 @@ export async function expandWorldLore(input: ExpandWorldLoreInput): Promise<Expa
 
 const expandWorldLorePrompt = ai.definePrompt({
     name: 'expandWorldLorePrompt',
-    input: { schema: ExpandWorldLoreInputSchema },
+    input: { schema: ExpandWorldLorePromptInputSchema },
     output: { format: 'text' },
     prompt: `Você é o Arquiteto de Mundo & Designer de Campanha Profissional para D&D 5e.
 Sua missão é aprofundar um aspecto específico da Lore do Mundo existente, adicionando detalhes suculentos, nomes, intrigas e ramificações reais que o Mestre pode usar imediatamente.
@@ -40,7 +47,7 @@ O Mestre solicitou uma EXPANSÃO PROFUNDA para o seguinte tópico:
 
 Dependendo do tópico, gere o conteúdo usando as seguintes DIRETRIZES OBRIGATÓRIAS (substitua pelo conteúdo solicitado):
 
-{{#if (eq topic "economy")}}
+{{#if isEconomy}}
 ### 🪙 Aprofundamento Econômico
 Descreva os motores econômicos que movem esta região:
 1. **Moeda e Câmbio**: A cunhagem local. Há mais de um padrão? Moedas manchadas de sangue? Corrupção na pesagem?
@@ -50,7 +57,7 @@ Descreva os motores econômicos que movem esta região:
 5. **Relações Comerciais Externas**: Quem supre o que a região não tem? Qual a fragilidade na cadeia de suprimentos?
 {{/if}}
 
-{{#if (eq topic "politics")}}
+{{#if isPolitics}}
 ### 🗺️ Mapa Político Detalhado
 Detalhe as teias políticas ocultas e visíveis:
 1. **O Balanço de Poder Real**: Quem realmente governa das sombras, usando os governantes como fantoches?
@@ -60,7 +67,7 @@ Detalhe as teias políticas ocultas e visíveis:
 5. **Zonas Contendidas**: Territórios (físicos ou burocráticos) onde a guerra fria está fervendo.
 {{/if}}
 
-{{#if (eq topic "simulation")}}
+{{#if isSimulation}}
 ### ⏳ Simulação: 1 Ano de Evolução
 Projete como o mundo evoluirá nos próximos 12 meses **SE OS JOGADORES NÃO FIZEREM NADA**:
 1. **Mês 1-3 (O Estopim)**: Qual conflito ativo estoura e qual a primeira consequência mortal?
@@ -69,7 +76,7 @@ Projete como o mundo evoluirá nos próximos 12 meses **SE OS JOGADORES NÃO FIZ
 4. **Mês 10-12 (O Status Quo Rompido)**: Como o mundo estará ao final de um ano? Desenhe o novo mapa terrível se intervenção não ocorrer.
 {{/if}}
 
-{{#if (eq topic "consequences")}}
+{{#if isConsequences}}
 ### 🔮 Projeção de Impactos
 Mapeie o "Efeito Borboleta" caso o principal conflito político/econômico atual caia. Analise:
 1. **Impacto Econômico Cascateante**: Quem vai à falência? Quais mercadorias somem do mercado? O que fica inflacionado?
@@ -92,7 +99,18 @@ export const expandWorldLoreFlow = ai.defineFlow(
         outputSchema: z.object({ expandedText: z.string() }),
     },
     async (input) => {
-        const { text } = await expandWorldLorePrompt(input);
-        return { expandedText: text };
+        try {
+            const { text } = await expandWorldLorePrompt({
+                ...input,
+                isEconomy: input.topic === 'economy',
+                isPolitics: input.topic === 'politics',
+                isSimulation: input.topic === 'simulation',
+                isConsequences: input.topic === 'consequences'
+            });
+            return { expandedText: text };
+        } catch (error) {
+            console.error("Error in expandWorldLoreFlow:", error);
+            throw error;
+        }
     }
 );

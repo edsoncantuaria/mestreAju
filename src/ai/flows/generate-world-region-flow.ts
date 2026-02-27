@@ -46,22 +46,29 @@ export const generateWorldFoundationFlow = ai.defineFlow(
       outputSchema: RegionFoundationSchema,
    },
    async (input) => {
-      const { output } = await ai.generate({
-         model: FLASH_MODEL,
-         system: baseSystemInstruction,
-         prompt: `OBJETIVO DA ETAPA 1: CRIAR AS BASES DO MUNDO (Fundação Histórica, Política e Religiosa).
-         
+      try {
+         console.log("[Genkit] Iniciando Etapa 1: Fundação... Bioma:", input.biome);
+         const { output } = await ai.generate({
+            model: FLASH_MODEL,
+            system: baseSystemInstruction,
+            prompt: `OBJETIVO DA ETAPA 1: CRIAR AS BASES DO MUNDO (Fundação Histórica, Política e Religiosa).
+            
 Biome/Tema: ${input.biome || 'Qualquer um'}
 Diretriz do Mestre: ${input.additionalContext || 'Nenhuma'}
 Modo Profundo: ${input.expandLayers ? 'ATIVADO (Aprofunde a economia: detalhe moeda, tributos, comércio com regiões vizinhas, contrabando, monopólios. Mapa político detalhado: quem tem tratados, quem está em guerra fria, quem deve favores a quem. Simulação de 1 ano de evolução)' : 'DESATIVADO'}
 
 Sua tarefa é focar exclusivamente no panorama macro da região. Elabore os conflitos basilares (structuralConflicts), a história (recente e fundadora), a estrutura de governo, as tensões sociais, e os deuses que ditam a norma moral da região. Crie uma fundação tão rica que o mundo se sustentaria sozinho. Elabore também Ganchos de Aventura políticos e Segredos Absolutos do Mundo.`,
-         output: { schema: RegionFoundationSchema },
-         config: {
-            temperature: 0.7,
-         }
-      });
-      return output!;
+            output: { schema: RegionFoundationSchema },
+            config: { temperature: 0.7 }
+         });
+
+         if (!output) throw new Error("Output was nullish");
+         console.log("[Genkit] Sucesso na Etapa 1.");
+         return output;
+      } catch (error: any) {
+         console.error("[Genkit] ERRO NA ETAPA 1:", error?.message || error);
+         throw new Error("Falha ao gerar Fundação: " + (error?.message || JSON.stringify(error)));
+      }
    }
 );
 
@@ -80,11 +87,13 @@ export const generateWorldEntitiesFlow = ai.defineFlow(
       outputSchema: RegionEntitiesSchema,
    },
    async (input) => {
-      const { output } = await ai.generate({
-         model: FLASH_MODEL,
-         system: baseSystemInstruction,
-         prompt: `OBJETIVO DA ETAPA 2: POVOAR O MUNDO (Facções, NPCs e Locais).
-         
+      try {
+         console.log("[Genkit] Iniciando Etapa 2: Entidades...");
+         const { output } = await ai.generate({
+            model: FLASH_MODEL,
+            system: baseSystemInstruction,
+            prompt: `OBJETIVO DA ETAPA 2: POVOAR O MUNDO (Facções, NPCs e Locais).
+            
 Você DEVE criar entidades que se conectem e reajam diretamente à fundação estabelecida na Etapa 1 (cenário político, história e economia). Não invente elementos isolados.
 
 [CONTEXTO DA ETAPA 1 - FUNDAÇÃO DO MUNDO]
@@ -94,15 +103,20 @@ Biome/Tema: ${input.biome || 'Qualquer'}
 Diretriz do Mestre: ${input.additionalContext || 'Nenhuma'}
 
 Sua tarefa:
-1. FACÇÕES (Mínimo 3): Grupos secretos, exércitos ou guildas. Elas DEVEM reagir às tensões sociais ou religião da Etapa 1. Detalhe seus Planos de 6 meses e Recursos.
-2. LOCAIS (Mínimo 5): A Capital, vilas, ruínas e pontos geológicos importantes da região atual. Use o que há na "economia" e no "evento fundador" como base. Crie Efeitos Regionais de D&D 5e e Perigos (Hazards).
-3. NPCS PRINCIPAIS (Mínimo 5): O Governante de fato, um Líder Religioso, um Antagonista Oculto, etc. Para CADA UM, escreva todos os detalhes de um bloco de estatísticas do D&D 5e e defina seus objetivos secretos intimamente ligados aos "Conflitos Ativos" do mundo.`,
-         output: { schema: RegionEntitiesSchema },
-         config: {
-            temperature: 0.7,
-         }
-      });
-      return output!;
+1. FACÇÕES (MÁXIMO 2): Grupos secretos, exércitos ou guildas. Elas DEVEM reagir às tensões sociais ou religião da Etapa 1. Detalhe seus Planos de 6 meses e Recursos.
+2. LOCAIS PRINCIPAIS (MÁXIMO 3): A Capital, vilas, ruínas e pontos geológicos importantes da região atual. Use o que há na "economia" e no "evento fundador" como base. Crie Efeitos Regionais de D&D 5e e Perigos (Hazards).
+3. NPCS CHAVES (MÁXIMO 3): O Governante de fato, um Líder Religioso, um Antagonista Oculto, etc. Para CADA UM, escreva todos os detalhes de um bloco de estatísticas do D&D 5e e defina seus objetivos secretos intimamente ligados aos "Conflitos Ativos" do mundo.`,
+            output: { schema: RegionEntitiesSchema },
+            config: { temperature: 0.7 }
+         });
+
+         if (!output) throw new Error("Output was nullish");
+         console.log("[Genkit] Sucesso na Etapa 2.");
+         return output;
+      } catch (error: any) {
+         console.error("[Genkit] ERRO NA ETAPA 2:", error?.message || error);
+         throw new Error("Falha ao gerar Entidades: " + (error?.message || JSON.stringify(error)));
+      }
    }
 );
 
@@ -122,11 +136,13 @@ export const generateWorldGameplayFlow = ai.defineFlow(
       outputSchema: RegionGameplaySchema,
    },
    async (input) => {
-      const { output } = await ai.generate({
-         model: FLASH_MODEL,
-         system: baseSystemInstruction,
-         prompt: `OBJETIVO DA ETAPA 3: GERAR GAMEPLAY (Rumores, Encontros, Quests, Loot e Sessão 0).
-         
+      try {
+         console.log("[Genkit] Iniciando Etapa 3: Gameplay...");
+         const { output } = await ai.generate({
+            model: FLASH_MODEL,
+            system: baseSystemInstruction,
+            prompt: `OBJETIVO DA ETAPA 3: GERAR GAMEPLAY (Rumores, Encontros, Quests, Loot e Sessão 0).
+            
 Você deve gerar os elementos "de mesa" que o Mestre usará nas sessões. ELES DEVEM ESTAR ENTRELAÇADOS com a Etapa 1 e Etapa 2, citando NOMES que você já conhece.
 
 [CONTEXTO DA ETAPA 1 - FUNDAÇÃO DO MUNDO]
@@ -140,15 +156,20 @@ Diretriz do Mestre: ${input.additionalContext || 'Nenhuma'}
 
 Sua Tarefa (SEJA ESPECÍFICO E NÃO CONTRADIGA O CONTEXTO):
 1. MISSÕES INICIAIS (Quests): EXATAMENTE 3 missões que referenciem EXPLICITAMENTE os nomes dos NPCs e Locais do contexto acima. Elas são a porta de entrada para os Conflitos da Etapa 1.
-2. ENCONTROS TEMÁTICOS: Aventuras rápidas ou perigos ambientais coerentes. Forneça títulos, cenas e estatísticas de monstros SRD recomendadas.
-3. TABELA DE BOATOS: O que se ouve nas tavernas sobre as Facções ou NPCs do Contexto 2? (d10)
-4. PADRÕES DE LOOT: Tesouros lógicos para a economia da Etapa 1.
+2. ENCONTROS TEMÁTICOS: MÁXIMO 3 aventuras rápidas ou perigos ambientais coerentes. Forneça títulos, cenas e estatísticas de monstros SRD recomendadas.
+3. TABELA DE BOATOS: MÁXIMO 5 boatos que se ouvem nas tavernas sobre as Facções ou NPCs do Contexto 2.
+4. PADRÕES DE LOOT: 2 Categorias lógicas para a economia.
 5. SESSÃO ZERO (Campaign Genesis): Guias estruturados, Ganchos de Background e Expectativas de Tom sugeridos para os jogadores integrarem esse mundo de forma natural.`,
-         output: { schema: RegionGameplaySchema },
-         config: {
-            temperature: 0.7,
-         }
-      });
-      return output!;
+            output: { schema: RegionGameplaySchema },
+            config: { temperature: 0.7 }
+         });
+
+         if (!output) throw new Error("Output was nullish");
+         console.log("[Genkit] Sucesso na Etapa 3.");
+         return output;
+      } catch (error: any) {
+         console.error("[Genkit] ERRO NA ETAPA 3:", error?.message || error);
+         throw new Error("Falha ao gerar Gameplay: " + (error?.message || JSON.stringify(error)));
+      }
    }
 );
