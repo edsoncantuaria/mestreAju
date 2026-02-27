@@ -9,7 +9,8 @@ import {
   Minus, Maximize2, MapPin, ChevronUp,
   ChevronLeft, Trash2, Sword, ImageIcon, Settings2,
   BookText,
-  Clock
+  Clock,
+  ScrollText
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
