@@ -3,7 +3,7 @@
  * @fileOverview Genkit flows for generating a D&D 5e World Region in 3 stages.
  * Implements the Professional World Design System specification.
  * 
- * UPGRADED: Using Gemini 2.5 Pro for maximum worldbuilding reasoning.
+ * STABILIZED: Using Gemini 1.5 Pro for maximum worldbuilding reasoning with reliable quota.
  */
 
 import { ai } from '@/ai/genkit';
@@ -33,8 +33,8 @@ REGRAS ABSOLUTAS:
 3. Sempre pense em escala de longo prazo — o mundo evolui mesmo sem os jogadores.
 4. Responda EXCLUSIVAMENTE em Português Brasileiro.`;
 
-// Constante para o modelo Pro mais atual disponível conforme solicitado
-const PRO_MODEL = 'googleai/gemini-2.5-pro';
+// Utilizando o 1.5 Pro estável para garantir que o processo de worldbuilding não falhe por falta de cota.
+const PRO_MODEL = 'googleai/gemini-1.5-pro';
 
 // ==========================================
 // 1. FOUNDATION FLOW (Using Pro Model)
