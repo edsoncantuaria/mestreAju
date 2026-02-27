@@ -33,7 +33,7 @@ REGRAS ABSOLUTAS:
 3. Sempre pense em escala de longo prazo — o mundo evolui mesmo sem os jogadores.
 4. Responda EXCLUSIVAMENTE em Português Brasileiro.`;
 
-// Constante para o modelo Pro mais atual disponível
+// Constante para o modelo Pro mais atual disponível conforme solicitado
 const PRO_MODEL = 'googleai/gemini-2.5-pro';
 
 // ==========================================
