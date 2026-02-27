@@ -263,6 +263,11 @@
           "type": "string",
           "format": "uri"
         },
+        "backgroundUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL da imagem de fundo customizada para o workspace do mestre."
+        },
         "involvedFactionIds": {
           "type": "array",
           "items": {

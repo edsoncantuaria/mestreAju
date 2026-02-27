@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,7 +8,7 @@ import {
   FolderOpen, ChevronRight, Loader2, Mail, Lock, LogOut,
   Cloud, History, Globe, ChevronDown, LayoutDashboard,
   Minus, Maximize2, MapPin, ChevronUp,
-  ChevronLeft, Trash2, Sword
+  ChevronLeft, Trash2, Sword, ImageIcon, Settings2
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -424,6 +425,7 @@ function ScreenContent() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
+  const [bgInputUrl, setBgInputUrl] = useState('');
 
   // AlertDialog states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -613,6 +615,24 @@ function ScreenContent() {
       updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`), { partyMembers: p });
   };
 
+  const updateBackgroundUrl = async () => {
+    if (!db || !user || !activeSessionId) return;
+    try {
+      setGlobalLoading(true);
+      const sessionRef = doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`);
+      await updateDoc(sessionRef, {
+        backgroundUrl: bgInputUrl,
+        dateLastModified: new Date().toISOString()
+      });
+      toast({ title: "Ambiente Atualizado", description: "O papel de parede do mundo foi sincronizado." });
+    } catch (e) {
+      console.error(e);
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao atualizar o fundo." });
+    } finally {
+      setGlobalLoading(false);
+    }
+  };
+
   const addMember = () => { const p = [...party, { id: Date.now().toString(), name: '', level: 1, race: '', class: '' }]; setParty(p); persistParty(p); };
   const updateMember = (id: string, u: Partial<PartyMember>) => { const p = party.map(m => m.id === id ? { ...m, ...u } : m); setParty(p); persistParty(p); };
   const removeMember = (id: string) => { if (party.length > 1) { const p = party.filter(m => m.id !== id); setParty(p); persistParty(p); } };
@@ -691,6 +711,43 @@ function ScreenContent() {
               <Cloud size={9} /> {user.isAnonymous ? 'Temp' : 'Synced'}
             </span>
           </div>
+
+          {activeSession && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="w-7 h-7 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-muted-foreground hover:text-accent transition-colors"
+                  onClick={() => setBgInputUrl(activeSession.backgroundUrl || '')}
+                >
+                  <Settings2 size={14} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-64 border-white/8 bg-card shadow-2xl p-4 space-y-4 text-xs">
+                <div className="space-y-1.5">
+                  <h4 className="font-bold text-accent uppercase tracking-widest text-[9px] flex items-center gap-2">
+                    <ImageIcon size={12} /> Personalizar Ambiente
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground leading-tight">Mude o papel de parede deste mundo sandbox.</p>
+                </div>
+                <div className="space-y-2">
+                  <Input
+                    placeholder="URL da imagem (jpg, png, webp)..."
+                    value={bgInputUrl}
+                    onChange={e => setBgInputUrl(e.target.value)}
+                    className="h-8 text-[10px] bg-black/40 border-white/10"
+                  />
+                  <Button
+                    size="sm"
+                    className="w-full h-8 bg-primary text-[10px] font-bold uppercase tracking-widest"
+                    onClick={updateBackgroundUrl}
+                  >
+                    Salvar Fundo
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
+
           <Popover>
             <PopoverTrigger asChild>
               <button className="w-7 h-7 rounded-full bg-primary/15 border border-primary/20 flex items-center justify-center text-primary/80 font-[Fira_Code] font-semibold text-[11px] hover:bg-primary/25 transition-colors">
@@ -770,7 +827,7 @@ function ScreenContent() {
             <div
               className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-cover bg-center"
               style={{
-                backgroundImage: 'url("https://picsum.photos/seed/dndmap/1920/1080")',
+                backgroundImage: activeSession.backgroundUrl ? `url("${activeSession.backgroundUrl}")` : 'url("https://picsum.photos/seed/dndmap/1920/1080")',
                 backgroundColor: '#050505'
               }}
             >
