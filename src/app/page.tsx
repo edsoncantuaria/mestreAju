@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  Scroll, Search, PenTool, Map, Zap, Sword, X, Plus,
+  Scroll, Search, PenTool, Map, Zap, X, Plus,
   Activity, BookOpen, Sparkles, Users, Shield, Book,
   FolderOpen, ChevronRight, Loader2, Mail, Lock, LogOut,
   Cloud, History, Globe, ChevronDown, LayoutDashboard,
-  Minus, Maximize2, GripHorizontal, MapPin, ChevronUp,
-  ChevronLeft, Trash2
+  Minus, Maximize2, MapPin, ChevronUp,
+  ChevronLeft, Trash2, Sword
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -26,6 +26,16 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   FirebaseClientProvider, useUser, useFirestore,
   useCollection, useMemoFirebase, useAuth,
@@ -225,7 +235,6 @@ function Window({
         const ny = e.clientY - dragOffset.y;
 
         // Clamp bounds: Ensure window stays within workspace
-        // Allow a small 'off-screen' buffer if desired, but here we clamp strictly
         const clampedX = Math.max(0, Math.min(nx, parentRect.width - width));
         const clampedY = Math.max(0, Math.min(ny, parentRect.height - 40)); // Keep header visible at least
 
@@ -328,13 +337,8 @@ function Window({
   );
 }
 
-function Panel(props: PanelConfig) {
-  // Legacy support for non-OS views if needed, for now just render as a stationary window or tiling
-  return <div className="panel-glass rounded-xl p-3 h-full overflow-y-auto">{props.children}</div>;
-}
-
 // ─────────────────────────────────────────────────────────
-// PARTY MINI TRACKER (Updated for Window system)
+// PARTY MINI TRACKER
 // ─────────────────────────────────────────────────────────
 interface PartyPanelProps {
   members: PartyMember[];
@@ -421,6 +425,10 @@ function ScreenContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
 
+  // AlertDialog states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<{ id: string, title: string } | null>(null);
+
   const selectSession = (session: any) => {
     setActiveSessionId(session.id);
     localStorage.setItem('mestreaju_active_session_id', session.id);
@@ -430,17 +438,21 @@ function ScreenContent() {
     toast({ title: 'Mundo ativo', description: `"${session.title}"` });
   };
 
-  const handleDeleteSession = async (e: React.MouseEvent, sessionId: string, title: string) => {
-    e.stopPropagation();
-    if (!user) return;
-    if (confirm(`Tem certeza que deseja apagar a crônica "${title}"? Todos os personagens e locais associados serão perdidos. Esta ação não pode ser desfeita.`)) {
-      try {
-        await deleteDoc(doc(db, `users/${user.uid}/campaigns/${sessionId}`));
-        toast({ title: "Crônica Apagada", description: `A crônica "${title}" foi removida do arquivo.` });
-      } catch (error) {
-        console.error('Error deleting session:', error);
-        toast({ variant: "destructive", title: "Erro", description: "Falha ao apagar crônica." });
+  const confirmDeleteSession = async () => {
+    if (!user || !sessionToDelete || !db) return;
+    try {
+      await deleteDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${sessionToDelete.id}`));
+      toast({ title: "Crônica Apagada", description: `A crônica "${sessionToDelete.title}" foi removida do arquivo.` });
+      if (activeSessionId === sessionToDelete.id) {
+        setActiveSessionId(null);
+        localStorage.removeItem('mestreaju_active_session_id');
       }
+    } catch (error) {
+      console.error('Error deleting session:', error);
+      toast({ variant: "destructive", title: "Erro", description: "Falha ao apagar crônica." });
+    } finally {
+      setIsDeleteModalOpen(false);
+      setSessionToDelete(null);
     }
   };
 
@@ -450,7 +462,6 @@ function ScreenContent() {
 
   // Window System State
   const [windowPositions, setWindowPositions] = useState<Record<string, WindowPosition>>(() => {
-    // Try to load from localStorage
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mestreaju_windows');
       if (saved) return JSON.parse(saved);
@@ -475,7 +486,6 @@ function ScreenContent() {
     setActiveTools(current => {
       const isOpening = !current.includes(toolId);
       if (isOpening) {
-        // Initialize position if not exists
         if (!windowPositions[toolId]) {
           const nextZ = maxZ + 1;
           setMaxZ(nextZ);
@@ -492,7 +502,6 @@ function ScreenContent() {
             }
           }));
         } else if (windowPositions[toolId].isMinimized) {
-          // Bring to front and restore
           const nextZ = maxZ + 1;
           setMaxZ(nextZ);
           setWindowPositions(prev => ({
@@ -522,7 +531,6 @@ function ScreenContent() {
     updateWindow(id, { zIndex: nextZ });
   };
 
-  // ── Firestore ──
   const userDocRef = useMemoFirebase(() => user && db ? doc(db, 'users', user.uid) : null, [db, user]);
   const { data: userProfile, isLoading: loadingProfile } = useDoc(userDocRef);
 
@@ -538,7 +546,6 @@ function ScreenContent() {
   }, [db, user, activeSessionId]);
   const { data: activeSession } = useDoc(activeSessionRef);
 
-  // ── Effects ──
   useEffect(() => { if (activeSession?.partyMembers) setParty(activeSession.partyMembers); }, [activeSession?.id]);
 
   useEffect(() => {
@@ -563,7 +570,6 @@ function ScreenContent() {
     }
   }, [user, isUserLoading, loadingSessions, loadingProfile, sessions, userProfile, isInitializing]);
 
-  // ── Handlers ──
   const handleContextAction = async (targetToolId: string, data: any) => {
     if (!db || !user || !activeSessionId) return;
 
@@ -594,7 +600,6 @@ function ScreenContent() {
       return;
     }
 
-    // Standard context communication
     await updateDoc(doc(db, `users/${user.uid}/campaigns/default-campaign/sessions/${activeSessionId}`), {
       activeContext: { targetTool: targetToolId, data, timestamp: new Date().toISOString() },
       dateLastModified: new Date().toISOString()
@@ -613,7 +618,6 @@ function ScreenContent() {
   const removeMember = (id: string) => { if (party.length > 1) { const p = party.filter(m => m.id !== id); setParty(p); persistParty(p); } };
   const avgLevel = party.length ? Math.round(party.reduce((a, m) => a + parseTotalLevel(m.class), 0) / party.length) : 1;
 
-  // ── Loading / Auth ──
   if (isUserLoading || (user && isInitializing)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
@@ -626,11 +630,9 @@ function ScreenContent() {
 
   const tp: ToolProps = { partyInfo: { members: party }, activeSession, onContextAction: handleContextAction, setGlobalLoading };
 
-  // ─────────────────────────────── RENDER ────────────────
   return (
     <div className="flex flex-col h-screen bg-background text-foreground overflow-hidden">
 
-      {/* ──────── AI LOADING OVERLAY ──────── */}
       {globalLoading && (
         <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center shadow-xl shadow-primary/30 animate-pulse">
@@ -640,11 +642,9 @@ function ScreenContent() {
         </div>
       )}
 
-      {/* ──────── TOP BAR ──────── */}
       <header className="h-11 flex items-center justify-between px-4 shrink-0 z-50 border-b border-white/[0.045]"
         style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)' }}>
 
-        {/* Left: Brand */}
         <div className="flex items-center gap-2.5">
           <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center shadow shadow-primary/30">
             <Sword size={13} className="text-white" />
@@ -653,7 +653,6 @@ function ScreenContent() {
           <span className="hidden md:inline font-[Fira_Code] text-[8px] uppercase tracking-[0.25em] text-white/20 border-l border-white/10 pl-2.5">DM Screen</span>
         </div>
 
-        {/* Center: Contextual Info & Selector */}
         <div className="flex items-center gap-4">
           <TooltipProvider>
             <Tooltip>
@@ -684,7 +683,6 @@ function ScreenContent() {
           )}
         </div>
 
-        {/* Right: Status + User */}
         <div className="flex items-center gap-3">
           <div className="hidden lg:flex items-center gap-3 font-[Fira_Code] text-[9px] uppercase tracking-widest text-muted-foreground/60">
             <span className="flex items-center gap-1"><Shield size={9} className="text-amber-400/70" /> CR {avgLevel}</span>
@@ -714,7 +712,6 @@ function ScreenContent() {
         </div>
       </header>
 
-      {/* ──────── COCKPIT / STANDBY ──────── */}
       {!activeSession ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 relative">
           <div className="absolute inset-0 pointer-events-none">
@@ -733,31 +730,9 @@ function ScreenContent() {
           </Button>
         </div>
       ) : (
-        /*
-         * ═══════════════════════════════════════════════════════
-         *  COCKPIT TILING LAYOUT
-         *
-         *  Left (grow 1)   │  Center (grow 1.9)  │  Right (grow 1)
-         *  ─────────────────────────────────────────────────────
-         *  Sessão (2)      │  Grimório (3)        │  Party (0.7)
-         *  Narrativa (1)   │  Sandbox + Efeitos   │  Enciclopédia (2)
-         *                  │    (side by side)    │  Resumo (1)
-         *                  │                      │  Análise (0.8)
-         *
-         *  Each panel has a traffic-light minimize button.
-         *  When a panel minimizes → siblings absorb via flex-grow.
-         *  Left column hidden on screens < lg (1024px).
-         * ═══════════════════════════════════════════════════════
-         */
-        /*
-         * ═══════════════════════════════════════════════════════
-         *  COCKPIT TILING LAYOUT (SIDEBAR + WORKSPACE)
-         * ═══════════════════════════════════════════════════════
-         */
         <TooltipProvider>
           <div className="flex-1 min-h-0 flex flex-col lg:flex-row overflow-hidden relative">
 
-            {/* ── LEFT FIXED COMMAND CENTER (LIVE SESSION) ── */}
             <div
               className={cn(
                 "border-r border-white-[0.03] bg-[#050505]/80 backdrop-blur-2xl z-[40] relative flex flex-col shrink-0 hidden lg:flex shadow-[20px_0_50px_-20px_rgba(0,0,0,0.5)] transition-all duration-500 ease-in-out overflow-hidden",
@@ -781,11 +756,10 @@ function ScreenContent() {
               </div>
             </div>
 
-            {/* ── SIDEBAR TOGGLE BUTTON ── */}
             <button
               onClick={() => setIsLiveSessionCollapsed(!isLiveSessionCollapsed)}
               className={cn(
-                "absolute left-0 top-1/2 -translate-y-1/2 z-[100] w-5 h-12 bg-[#0a0a0a]/80 border border-white/10 border-l-0 rounded-r-lg flex items-center justify-center text-muted-foreground hover:text-accent hover:bg-black transition-all duration-300 shadow-xl",
+                "absolute left-0 top-1/2 -translate-y-1/2 z-[45] w-5 h-12 bg-[#0a0a0a]/80 border border-white/10 border-l-0 rounded-r-lg flex items-center justify-center text-muted-foreground hover:text-accent hover:bg-black transition-all duration-300 shadow-xl",
                 isLiveSessionCollapsed ? "translate-x-0" : "translate-x-[420px]"
               )}
               title={isLiveSessionCollapsed ? "Expandir Painel" : "Recolher Painel"}
@@ -793,17 +767,15 @@ function ScreenContent() {
               {isLiveSessionCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
             </button>
 
-            {/* ── MAIN WORKSPACE AREA ── */}
             <div
               className="flex-1 flex flex-col min-h-0 relative overflow-hidden bg-cover bg-center"
               style={{
-                backgroundImage: 'url("file:///home/edsoncantuaria/.gemini/antigravity/brain/1553a81b-a170-4091-9cd7-fea1907c66e8/mestreaju_desktop_bg_1772105146963.png")',
+                backgroundImage: 'url("https://picsum.photos/seed/dndmap/1920/1080")',
                 backgroundColor: '#050505'
               }}
             >
               <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" />
 
-              {/* ── OS DESKTOP ── */}
               <div className="flex-1 min-h-0 relative overflow-hidden">
                 {activeTools.length === 0 && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground/30 space-y-3">
@@ -878,7 +850,6 @@ function ScreenContent() {
                 })}
               </div>
 
-              {/* ── BOTTOM DOCK (HORIZONTAL TOOLBAR) ── */}
               <div className="h-20 px-8 flex items-center justify-center pb-4 z-[60] shrink-0 pointer-events-none">
                 <div className="h-14 px-5 rounded-2xl border border-white/10 bg-[#0a0a0a]/60 backdrop-blur-xl flex items-center gap-2 shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto transition-all duration-500 hover:bg-[#0a0a0a]/80 hover:border-white/20">
                   {[
@@ -915,7 +886,6 @@ function ScreenContent() {
                               )}
                             />
 
-                            {/* Indicator Dot */}
                             {isActive && (
                               <div className={cn(
                                 "absolute -bottom-1 left-1/2 -translate-x-1/2 h-1 rounded-full bg-accent transition-all duration-300",
@@ -935,7 +905,6 @@ function ScreenContent() {
               </div>
             </div>
 
-            {/* ── MOBILE BOTTOM NAVIGATION ── */}
             <div className="sm:hidden fixed bottom-4 left-4 right-4 h-12 glass-card rounded-2xl flex items-center justify-around px-2 z-[60] border-white/10 shadow-2xl shadow-black/50 overflow-x-auto scrollbar-hide py-1">
               {[
                 { id: 'live', icon: Activity, color: 'text-rose-400' },
@@ -962,10 +931,8 @@ function ScreenContent() {
         </TooltipProvider>
       )}
 
-      {/* ──────── WORLD SELECTION MODAL ──────── */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-[640px] bg-card/95 backdrop-blur-xl border-white/8 p-0 overflow-hidden shadow-2xl text-foreground">
-          {/* Accent gradient top bar */}
           <div className="h-px bg-gradient-to-r from-transparent via-accent/60 to-transparent w-full" />
           <div className="p-7">
             <DialogHeader className="mb-6">
@@ -988,7 +955,6 @@ function ScreenContent() {
               </div>
             ) : (
               <div className="space-y-5">
-                {/* New world button */}
                 <button
                   onClick={() => setShowNewForm(true)}
                   className="w-full h-[68px] panel-glass rounded-xl px-5 flex items-center gap-4 hover:border-accent/30 transition-colors duration-150 group cursor-pointer"
@@ -1003,7 +969,6 @@ function ScreenContent() {
                   <ChevronRight size={14} className="text-muted-foreground ml-auto group-hover:text-accent transition-colors" />
                 </button>
 
-                {/* Sessions list */}
                 <div className="space-y-2">
                   <p className="font-[Fira_Code] text-[9px] uppercase tracking-widest text-muted-foreground/60 flex items-center gap-2">
                     <History size={10} /> Crônicas Registradas
@@ -1031,7 +996,11 @@ function ScreenContent() {
                             <ChevronRight size={13} className="text-muted-foreground/40 group-hover:text-accent shrink-0 transition-colors" />
                           </button>
                           <button
-                            onClick={(e) => handleDeleteSession(e, s.id, s.title)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSessionToDelete({ id: s.id, title: s.title });
+                              setIsDeleteModalOpen(true);
+                            }}
                             className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg text-muted-foreground/40 hover:text-red-400 hover:bg-red-400/10 opacity-0 group-hover:opacity-100 transition-all duration-200"
                             title="Apagar Crônica"
                           >
@@ -1049,13 +1018,30 @@ function ScreenContent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
+        <AlertDialogContent className="bg-card border-white/10 text-foreground">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-accent font-headline">Apagar Crônica?</AlertDialogTitle>
+            <AlertDialogDescription className="text-muted-foreground">
+              Esta ação irá remover permanentemente a crônica <span className="text-white font-bold">"{sessionToDelete?.title}"</span> e todos os seus registros associados (NPCs, Locais, Histórico). Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="bg-white/5 border-white/10 hover:bg-white/10 text-xs">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteSession}
+              className="bg-destructive hover:bg-destructive/90 text-white font-bold text-xs"
+            >
+              Apagar Permanentemente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div >
   );
 }
 
-// ─────────────────────────────────────────────────────────
-// ROOT — Firebase Wrapper
-// ─────────────────────────────────────────────────────────
 export default function ScreenDungeonMaster() {
   return (
     <FirebaseClientProvider>
