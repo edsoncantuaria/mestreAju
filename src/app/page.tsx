@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -8,7 +7,9 @@ import {
   FolderOpen, ChevronRight, Loader2, Mail, Lock, LogOut,
   Cloud, History, Globe, ChevronDown, LayoutDashboard,
   Minus, Maximize2, MapPin, ChevronUp,
-  ChevronLeft, Trash2, Sword, ImageIcon, Settings2
+  ChevronLeft, Trash2, Sword, ImageIcon, Settings2,
+  BookText,
+  Clock
 } from 'lucide-react';
 import { SessionSummaryTool } from '@/components/tools/session-summary-tool';
 import { ContextAnalysisTool } from '@/components/tools/context-analysis-tool';
@@ -27,6 +28,8 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import ReactMarkdown from 'react-markdown';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -426,6 +429,7 @@ function ScreenContent() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showNewForm, setShowNewForm] = useState(false);
   const [bgInputUrl, setBgInputUrl] = useState('');
+  const [isCodexOpen, setIsCodexOpen] = useState(false);
 
   // AlertDialog states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -662,6 +666,38 @@ function ScreenContent() {
         </div>
       )}
 
+      {/* ── World Lore Fixed Sidebar / Drawer ── */}
+      <div className={cn(
+        "fixed right-0 top-0 bottom-0 w-[450px] z-[150] bg-[#0a0a0c] border-l border-white/10 shadow-[-20px_0_60px_rgba(0,0,0,0.8)] transition-transform duration-500 ease-in-out flex flex-col",
+        isCodexOpen ? "translate-x-0" : "translate-x-full"
+      )}>
+        <div className="h-14 flex items-center justify-between px-6 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex items-center gap-2.5">
+            <BookText size={18} className="text-accent" />
+            <h3 className="font-headline font-black text-white uppercase tracking-wider">Códice do Mundo</h3>
+          </div>
+          <Button variant="ghost" size="icon" onClick={() => setIsCodexOpen(false)} className="hover:bg-white/5 text-muted-foreground">
+            <X size={20} />
+          </Button>
+        </div>
+        <ScrollArea className="flex-1 p-8 bg-[url('https://www.transparenttextures.com/patterns/dark-matter.png')]">
+          <div className="prose prose-invert prose-sm max-w-none 
+                          prose-h1:font-headline prose-h1:text-accent prose-h1:border-b prose-h1:border-white/10 prose-h1:pb-4
+                          prose-h2:font-headline prose-h2:text-accent prose-h2:mt-10
+                          prose-p:text-muted-foreground prose-p:leading-relaxed prose-p:mb-6
+                          prose-li:text-muted-foreground prose-strong:text-white">
+            {activeSession?.worldLore ? (
+              <ReactMarkdown>{activeSession.worldLore}</ReactMarkdown>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-center opacity-30">
+                <ScrollText size={48} className="mb-4" />
+                <p className="font-headline uppercase tracking-widest text-xs">Nenhum registro encontrado</p>
+              </div>
+            )}
+          </div>
+        </ScrollArea>
+      </div>
+
       <header className="h-11 flex items-center justify-between px-4 shrink-0 z-50 border-b border-white/[0.045]"
         style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)' }}>
 
@@ -693,12 +729,24 @@ function ScreenContent() {
           </TooltipProvider>
 
           {activeSession && (
-            <div className="flex items-center gap-3 border-l border-white/10 pl-4 animate-in fade-in slide-in-from-left-2 duration-300">
-              <div className="flex flex-col">
-                <span className="text-[8px] font-bold text-accent uppercase tracking-widest leading-none">Sessão {activeSession.currentPlaySession?.number || activeSession.playSessions?.length + 1 || 1}</span>
-                <span className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">{activeSession.currentPlaySession?.inGameDate || 'Dia 1'}</span>
+            <div className="flex items-center gap-3">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => setIsCodexOpen(true)}
+                className="h-7 px-3 rounded-lg border border-accent/20 bg-accent/5 hover:bg-accent/10 hover:border-accent/40 text-accent transition-all duration-300 group shadow-[0_0_10px_rgba(var(--accent-rgb),0.1)]"
+              >
+                <BookText size={12} className="mr-2 group-hover:scale-110 transition-transform" />
+                <span className="font-[Fira_Code] text-[9px] font-bold uppercase tracking-widest">Códice</span>
+              </Button>
+
+              <div className="flex items-center gap-3 border-l border-white/10 pl-4 animate-in fade-in slide-in-from-left-2 duration-300">
+                <div className="flex flex-col">
+                  <span className="text-[8px] font-bold text-accent uppercase tracking-widest leading-none">Sessão {activeSession.currentPlaySession?.number || activeSession.playSessions?.length + 1 || 1}</span>
+                  <span className="text-[10px] text-white/50 font-medium leading-tight mt-0.5">{activeSession.currentPlaySession?.inGameDate || 'Dia 1'}</span>
+                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
               </div>
-              <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
             </div>
           )}
         </div>
