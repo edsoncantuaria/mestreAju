@@ -33,7 +33,7 @@ const generateImageFlow = ai.defineFlow(
       : "Epic fantasy environment art, D&D official book style, atmospheric lighting, detailed landscape, matte painting";
 
     const { media } = await ai.generate({
-      model: 'googleai/imagen-3.0-fast-generate-001',
+      model: 'googleai/imagen-4.0-fast-generate-001',
       prompt: `${style}. ${input.description}`,
     });
 
