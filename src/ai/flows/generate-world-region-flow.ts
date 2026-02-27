@@ -3,7 +3,7 @@
  * @fileOverview Genkit flows for generating a D&D 5e World Region in 3 stages.
  * Implements the Professional World Design System specification.
  * 
- * UPGRADED: Using Gemini 1.5 Pro for complex worldbuilding steps due to large Zod schemas.
+ * UPGRADED: Using Gemini 2.0 Pro Experimental for maximum worldbuilding reasoning.
  */
 
 import { ai } from '@/ai/genkit';
@@ -33,6 +33,9 @@ REGRAS ABSOLUTAS:
 3. Sempre pense em escala de longo prazo — o mundo evolui mesmo sem os jogadores.
 4. Responda EXCLUSIVAMENTE em Português Brasileiro.`;
 
+// Constante para o modelo Pro mais atual disponível
+const PRO_MODEL = 'googleai/gemini-2.0-pro-exp-02-05';
+
 // ==========================================
 // 1. FOUNDATION FLOW (Using Pro Model)
 // ==========================================
@@ -44,7 +47,7 @@ export const generateWorldFoundationFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'googleai/gemini-1.5-pro',
+         model: PRO_MODEL,
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 1: CRIAR AS BASES DO MUNDO (Fundação Histórica, Política e Religiosa).
          
@@ -78,7 +81,7 @@ export const generateWorldEntitiesFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'googleai/gemini-1.5-pro',
+         model: PRO_MODEL,
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 2: POVOAR O MUNDO (Facções, NPCs e Locais).
          
@@ -120,7 +123,7 @@ export const generateWorldGameplayFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'googleai/gemini-1.5-pro',
+         model: PRO_MODEL,
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 3: GERAR GAMEPLAY (Rumores, Encontros, Quests, Loot e Sessão 0).
          
