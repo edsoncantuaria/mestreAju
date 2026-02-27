@@ -3,7 +3,7 @@
  * @fileOverview Genkit flows for generating a D&D 5e World Region in 3 stages.
  * Implements the Professional World Design System specification.
  * 
- * STABILIZED: Using Gemini 1.5 Pro for maximum worldbuilding reasoning with reliable quota.
+ * MODEL: Optimized for Gemini 2.5 Flash across all steps.
  */
 
 import { ai } from '@/ai/genkit';
@@ -31,13 +31,13 @@ REGRAS ABSOLUTAS:
 1. Nada deve existir isoladamente — tudo tem causa, consequência e conexão.
 2. Nada pode ser genérico — fuja de clichês sem uma subversão criativa.
 3. Sempre pense em escala de longo prazo — o mundo evolui mesmo sem os jogadores.
-4. Responda EXCLUSIVAMENTE em Português Brasileiro.`;
+4. Sua resposta DEVE ser estritamente o JSON solicitado pelo esquema de saída. Não inclua conversas ou textos fora do JSON.
+5. Responda EXCLUSIVAMENTE em Português Brasileiro.`;
 
-// Utilizando o 1.5 Pro estável para garantir que o processo de worldbuilding não falhe por falta de cota.
-const PRO_MODEL = 'googleai/gemini-1.5-pro';
+const FLASH_MODEL = 'googleai/gemini-2.5-flash';
 
 // ==========================================
-// 1. FOUNDATION FLOW (Using Pro Model)
+// 1. FOUNDATION FLOW
 // ==========================================
 export const generateWorldFoundationFlow = ai.defineFlow(
    {
@@ -47,7 +47,7 @@ export const generateWorldFoundationFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: PRO_MODEL,
+         model: FLASH_MODEL,
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 1: CRIAR AS BASES DO MUNDO (Fundação Histórica, Política e Religiosa).
          
@@ -58,7 +58,7 @@ Modo Profundo: ${input.expandLayers ? 'ATIVADO (Aprofunde a economia: detalhe mo
 Sua tarefa é focar exclusivamente no panorama macro da região. Elabore os conflitos basilares (structuralConflicts), a história (recente e fundadora), a estrutura de governo, as tensões sociais, e os deuses que ditam a norma moral da região. Crie uma fundação tão rica que o mundo se sustentaria sozinho. Elabore também Ganchos de Aventura políticos e Segredos Absolutos do Mundo.`,
          output: { schema: RegionFoundationSchema },
          config: {
-            temperature: 0.8,
+            temperature: 0.7,
          }
       });
       return output!;
@@ -67,7 +67,7 @@ Sua tarefa é focar exclusivamente no panorama macro da região. Elabore os conf
 
 
 // ==========================================
-// 2. ENTITIES FLOW (Using Pro Model)
+// 2. ENTITIES FLOW
 // ==========================================
 const EntitiesInputSchema = BaseInputSchema.extend({
    foundationData: z.any().describe('JSON das fundações da Etapa 1'),
@@ -81,7 +81,7 @@ export const generateWorldEntitiesFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: PRO_MODEL,
+         model: FLASH_MODEL,
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 2: POVOAR O MUNDO (Facções, NPCs e Locais).
          
@@ -99,7 +99,7 @@ Sua tarefa:
 3. NPCS PRINCIPAIS (Mínimo 5): O Governante de fato, um Líder Religioso, um Antagonista Oculto, etc. Para CADA UM, escreva todos os detalhes de um bloco de estatísticas do D&D 5e e defina seus objetivos secretos intimamente ligados aos "Conflitos Ativos" do mundo.`,
          output: { schema: RegionEntitiesSchema },
          config: {
-            temperature: 0.8,
+            temperature: 0.7,
          }
       });
       return output!;
@@ -108,7 +108,7 @@ Sua tarefa:
 
 
 // ==========================================
-// 3. GAMEPLAY FLOW (Using Pro Model)
+// 3. GAMEPLAY FLOW
 // ==========================================
 const GameplayInputSchema = BaseInputSchema.extend({
    foundationData: z.any(),
@@ -123,7 +123,7 @@ export const generateWorldGameplayFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: PRO_MODEL,
+         model: FLASH_MODEL,
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 3: GERAR GAMEPLAY (Rumores, Encontros, Quests, Loot e Sessão 0).
          
@@ -146,7 +146,7 @@ Sua Tarefa (SEJA ESPECÍFICO E NÃO CONTRADIGA O CONTEXTO):
 5. SESSÃO ZERO (Campaign Genesis): Guias estruturados, Ganchos de Background e Expectativas de Tom sugeridos para os jogadores integrarem esse mundo de forma natural.`,
          output: { schema: RegionGameplaySchema },
          config: {
-            temperature: 0.8,
+            temperature: 0.7,
          }
       });
       return output!;

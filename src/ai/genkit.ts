@@ -4,7 +4,7 @@ import {z} from 'genkit';
 
 export const ai = genkit({
   plugins: [googleAI()],
-  model: 'googleai/gemini-1.5-flash', // Retornando para 1.5 Flash para estabilidade de cota
+  model: 'googleai/gemini-2.5-flash', // Padronizado para 2.5 Flash em todo o sistema
 });
 
 /**
