@@ -70,7 +70,11 @@ import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { useToast } from '@/hooks/use-toast';
-import { generateWorldRegion } from '@/ai/flows/generate-world-region-flow';
+import {
+  generateWorldFoundationFlow,
+  generateWorldEntitiesFlow,
+  generateWorldGameplayFlow
+} from '@/ai/flows/generate-world-region-flow';
 import { saveGeneratedWorldRegion } from '@/firebase/firestore/campaigns';
 import { cn } from '@/lib/utils';
 
@@ -273,6 +277,10 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
   const [draftTitle, setDraftTitle] = useState('');
   const [pendingOption, setPendingOption] = useState<any | null>(null);
 
+  // Local Generation State
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatingMessage, setGeneratingMessage] = useState('');
+
   const handleChoice = (stepId: string, choice: any) => {
     const updatedChoices = { ...guidedChoices, [stepId]: choice };
     setGuidedChoices(updatedChoices);
@@ -308,19 +316,45 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
       });
       return;
     }
-    setGlobalLoading(true);
+    setIsGenerating(true);
     try {
-      const data = await generateWorldRegion({
+      setGeneratingMessage('Etapa 1/3: Forjando a Fundação Histórica e Política do Mundo...');
+      const foundationData = await generateWorldFoundationFlow({
         biome: formData.mapDescription,
         additionalContext: formData.worldLore,
         expandLayers: true
       });
-      setResult(data as any);
+
+      setGeneratingMessage('Etapa 2/3: Povoando o Mundo com Facções, NPCs e Locais...');
+      const entitiesData = await generateWorldEntitiesFlow({
+        biome: formData.mapDescription,
+        additionalContext: formData.worldLore,
+        expandLayers: true,
+        foundationData
+      });
+
+      setGeneratingMessage('Etapa 3/3: Gerando Missões, Boatos, Encontros e Preparação da Sessão...');
+      const gameplayData = await generateWorldGameplayFlow({
+        biome: formData.mapDescription,
+        additionalContext: formData.worldLore,
+        expandLayers: true,
+        foundationData,
+        entitiesData
+      });
+
+      const mergedData = {
+        ...foundationData,
+        ...entitiesData,
+        ...gameplayData
+      };
+
+      setResult(mergedData as any);
     } catch (error) {
       console.error(error);
       toast({ variant: "destructive", title: "Erro na IA", description: "Falha na criação estrutural do mundo." });
     } finally {
-      setGlobalLoading(false);
+      setIsGenerating(false);
+      setGeneratingMessage('');
     }
   };
 
@@ -366,7 +400,19 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
   };
 
   return (
-    <div className="space-y-4 max-h-[80vh] flex flex-col">
+    <div className="space-y-4 max-h-[80vh] flex flex-col relative">
+      {isGenerating && (
+        <div className="absolute inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300 rounded-3xl">
+          <div className="relative mb-8">
+            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse" />
+            <Globe className="w-16 h-16 text-primary animate-spin-slow relative z-10" />
+            <Sparkles className="w-6 h-6 text-accent absolute -top-2 -right-2 animate-bounce" />
+          </div>
+          <h3 className="text-xl font-headline font-bold text-white mb-3 tracking-widest uppercase title-glow">Gênese em Andamento</h3>
+          <p className="text-sm font-[Fira_Code] text-accent animate-pulse max-w-sm">{generatingMessage}</p>
+        </div>
+      )}
+
       {!result ? (
         <div className="flex-1 flex flex-col min-h-0">
           {isGuided ? (
@@ -576,20 +622,24 @@ export function PrepareSessionTool({ onSessionLoad, activeSession, onCancel, set
                               </div>
                             </div>
                             <div className="grid grid-cols-6 gap-1 text-center">
-                              {npc.statBlock.stats && Object.entries(npc.statBlock.stats).map(([k, v]: [string, any]) => (
-                                <div key={k}>
-                                  <span className="text-[7px] font-bold text-muted-foreground uppercase">{k}</span>
-                                  <p className="text-[10px] font-bold text-white">{v}</p>
+                              {['str', 'dex', 'con', 'int', 'wis', 'cha'].map((stat) => (
+                                <div key={stat}>
+                                  <span className="text-[7px] font-bold text-muted-foreground uppercase">{stat}</span>
+                                  <p className="text-[10px] font-bold text-white">{npc.statBlock[stat]}</p>
                                 </div>
                               ))}
                             </div>
                             <div className="space-y-1">
-                              {npc.statBlock.actions?.slice(0, 2).map((action: any, idx: number) => (
-                                <div key={idx} className="text-[9px] leading-tight flex gap-2">
-                                  <span className="text-accent font-bold shrink-0">{action.name}.</span>
-                                  <span className="text-muted-foreground line-clamp-1">{action.desc}</span>
-                                </div>
-                              ))}
+                              {npc.statBlock.actions?.slice(0, 2).map((action: string, idx: number) => {
+                                const [name, ...descParts] = action.split(':');
+                                const desc = descParts.join(':').trim();
+                                return (
+                                  <div key={idx} className="text-[9px] leading-tight flex gap-2">
+                                    <span className="text-accent font-bold shrink-0">{name ? name + '.' : ''}</span>
+                                    <span className="text-muted-foreground line-clamp-1">{desc || name}</span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}

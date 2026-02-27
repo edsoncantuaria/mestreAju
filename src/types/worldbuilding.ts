@@ -38,23 +38,21 @@ export const NpcSchema = z.object({
     ac: z.number(),
     hp: z.number(),
     speed: z.string(),
-    stats: z.object({
-      str: z.number(),
-      dex: z.number(),
-      con: z.number(),
-      int: z.number(),
-      wis: z.number(),
-      cha: z.number(),
-    }),
+    str: z.number(),
+    dex: z.number(),
+    con: z.number(),
+    int: z.number(),
+    wis: z.number(),
+    cha: z.number(),
     saves: z.array(z.string()).optional(),
     skills: z.array(z.string()).optional(),
     senses: z.string().optional(),
     languages: z.array(z.string()).optional(),
     cr: z.string(),
-    traits: z.array(z.object({ name: z.string(), desc: z.string() })).describe('Habilidades passivas/especiais'),
-    actions: z.array(z.object({ name: z.string(), desc: z.string() })).describe('Ações de combate'),
-    reactions: z.array(z.object({ name: z.string(), desc: z.string() })).optional(),
-    legendaryActions: z.array(z.object({ name: z.string(), desc: z.string() })).optional(),
+    traits: z.array(z.string()).describe('Habilidades passivas (formato "Nome: Descrição")'),
+    actions: z.array(z.string()).describe('Ações de combate (formato "Nome: Descrição")'),
+    reactions: z.array(z.string()).optional().describe('Reações (formato "Nome: Descrição")'),
+    legendaryActions: z.array(z.string()).optional().describe('Ações Lendárias (formato "Nome: Descrição")'),
   }).optional().describe('Stat-block para D&D 5e'),
 });
 export type NpcData = z.infer<typeof NpcSchema>;
@@ -66,7 +64,7 @@ export const LocationSchema = z.object({
   description: z.string().describe('Descrição visual e sensorial do local'),
   connections: z.array(z.string()).describe('Como se conecta a outros pontos (estradas, rios, portais)'),
   keyFeatures: z.array(z.string()).describe('Características marcantes do local'),
-  hazards: z.array(z.object({ name: z.string(), desc: z.string() })).optional().describe('Perigos ambientais, armadilhas ou Lair Actions'),
+  hazards: z.array(z.string()).optional().describe('Perigos ambientais, armadilhas ou Lair Actions (formato "Nome: Descrição")'),
   regionalEffects: z.array(z.string()).optional().describe('Efeitos regionais mágicos ou geográficos do local'),
   imageUrl: z.string().optional().describe('URL da imagem do local'),
 });
@@ -84,7 +82,7 @@ export const QuestSchema = z.object({
 });
 export type QuestData = z.infer<typeof QuestSchema>;
 
-export const RegionDataSchema = z.object({
+export const RegionFoundationSchema = z.object({
   overview: z.object({
     name: z.string().describe('Nome da região'),
     biome: z.string().describe('Bioma predominante'),
@@ -116,32 +114,39 @@ export const RegionDataSchema = z.object({
   activeConflicts: z.array(z.string()).describe('Conflitos acontecendo agora independente dos jogadores'),
   adventureHooks: z.array(z.string()).describe('Ganchos de aventura ativos ligados à economia ou política'),
   worldSecrets: z.array(z.string()).describe('Segredos absolutos do mundo (DMs only)'),
+});
+export type RegionFoundationData = z.infer<typeof RegionFoundationSchema>;
 
+export const RegionEntitiesSchema = z.object({
+  factions: z.array(FactionSchema).describe('Principais facções operando na região'),
+  npcs: z.array(NpcSchema).describe('Os NPCs chave (atores políticos, heróis, antagonistas)'),
+  locations: z.array(LocationSchema).describe('Pontos de interesse da região'),
+});
+export type RegionEntitiesData = z.infer<typeof RegionEntitiesSchema>;
+
+export const RegionGameplaySchema = z.object({
   rumorTable: z.array(z.object({
     rumor: z.string(),
     truthLevel: z.enum(['true', 'false', 'partial']),
     source: z.string().describe('Quem contou ou onde foi ouvido')
   })).describe('Tabela d10 de boatos locais'),
-
   thematicEncounters: z.array(z.object({
     title: z.string(),
     description: z.string(),
     trigger: z.string().describe('Condição ou local onde ocorre'),
     combatStats: z.string().optional().describe('Sugestão de monstros ou NPCs do SRD')
   })).describe('Encontros aleatórios "assinados" pelo tema do mundo'),
-
   lootPatterns: z.array(z.object({
     category: z.string().describe('Tipo de loot (ex: Arcano, Urbano, Deserto)'),
     items: z.array(z.string()).describe('Exemplos de itens de loot característicos')
   })).describe('Padrões de tesouro e recompensas da região'),
-
-  factions: z.array(FactionSchema).describe('Principais facções operando na região'),
-  npcs: z.array(NpcSchema).describe('Os NPCs chave (atores políticos, heróis, antagonistas)'),
-  locations: z.array(LocationSchema).describe('Pontos de interesse da região'),
   quests: z.array(QuestSchema).describe('Missões iniciais que conectam NPCs e Localidades'),
   sessionZero: SessionZeroSchema.describe('Dados para a Sessão 0 da campanha'),
 });
+export type RegionGameplayData = z.infer<typeof RegionGameplaySchema>;
 
+// The merged schema used in the app internally:
+export const RegionDataSchema = RegionFoundationSchema.merge(RegionEntitiesSchema).merge(RegionGameplaySchema);
 export type RegionWorldbuildingData = z.infer<typeof RegionDataSchema>;
 
 // ... rest of the file

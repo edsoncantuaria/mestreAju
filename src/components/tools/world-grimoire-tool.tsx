@@ -721,12 +721,22 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                                         </div>
                                     </div>
 
-                                    {/* Stats grid (STR, DEX, etc) - only display current for now to save space, but could add inputs here too */}
+                                    {/* Stats grid */}
                                     <div className="grid grid-cols-6 gap-2">
-                                        {Object.entries((isEditing ? editedData.statBlock.stats : selectedEntityDoc.statBlock.stats) || {}).map(([k, v]: [string, any]) => (
-                                            <div key={k} className="text-center border border-white/5 rounded-lg py-1.5 ">
-                                                <p className="text-[8px] uppercase font-bold text-accent">{k}</p>
-                                                <p className="text-xs font-bold text-white">{v}</p>
+                                        {['str', 'dex', 'con', 'int', 'wis', 'cha'].map((stat) => (
+                                            <div key={stat} className="text-center border border-white/5 rounded-lg py-1.5 ">
+                                                <p className="text-[8px] uppercase font-bold text-accent">{stat}</p>
+                                                <p className="text-xs font-bold text-white">
+                                                    {(isEditing ? editedData.statBlock?.[stat] : selectedEntityDoc.statBlock?.[stat]) || 10}
+                                                </p>
+                                                {isEditing && (
+                                                    <Input
+                                                        type="number"
+                                                        value={editedData.statBlock?.[stat] || 10}
+                                                        onChange={e => setEditedData({ ...editedData, statBlock: { ...editedData.statBlock, [stat]: parseInt(e.target.value) || 10 } })}
+                                                        className="h-6 text-center bg-black/40 border-white/10 mt-1 text-[10px]"
+                                                    />
+                                                )}
                                             </div>
                                         ))}
                                     </div>
@@ -736,24 +746,24 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                                         <div className="space-y-2">
                                             {isEditing ? (
                                                 <textarea
-                                                    value={editedData.statBlock.actions?.map((a: any) => `${a.name}: ${a.desc}`).join('\n\n')}
+                                                    value={editedData.statBlock.actions?.join('\n\n') || ''}
                                                     onChange={(e) => {
-                                                        const lines = e.target.value.split('\n\n');
-                                                        const actions = lines.map(line => {
-                                                            const [name, ...desc] = line.split(':');
-                                                            return { name: name.trim(), desc: desc.join(':').trim() };
-                                                        });
+                                                        const actions = e.target.value.split('\n\n').filter(a => a.trim() !== '');
                                                         setEditedData({ ...editedData, statBlock: { ...editedData.statBlock, actions } });
                                                     }}
                                                     className="w-full h-40 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] text-white outline-none resize-none"
                                                     placeholder="Ação 1: Descrição da ação...&#10;&#10;Ação 2: Descrição da ação..."
                                                 />
-                                            ) : selectedEntityDoc.statBlock.actions?.map((action: any, idx: number) => (
-                                                <div key={idx} className="p-3 bg-white/5 rounded-xl text-[11px] leading-relaxed">
-                                                    <span className="text-white font-bold italic mr-2">{action.name}.</span>
-                                                    <span className="text-muted-foreground">{action.desc}</span>
-                                                </div>
-                                            ))}
+                                            ) : selectedEntityDoc.statBlock.actions?.map((action: string, idx: number) => {
+                                                const [name, ...descParts] = action.split(':');
+                                                const desc = descParts.join(':').trim();
+                                                return (
+                                                    <div key={idx} className="p-3 bg-white/5 rounded-xl text-[11px] leading-relaxed">
+                                                        <span className="text-white font-bold italic mr-2">{name ? name + ':' : ''}</span>
+                                                        <span className="text-muted-foreground">{desc || name}</span>
+                                                    </div>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -772,7 +782,7 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                                             size="sm"
                                             className="h-7 text-[9px] uppercase font-bold text-primary hover:bg-primary/10"
                                             onClick={() => {
-                                                const prompt = `Battlemap: ${selectedEntityDoc.name}. Type: ${selectedEntityDoc.type}. Description: ${selectedEntityDoc.description}. Features: ${selectedEntityDoc.keyFeatures?.join(', ')}. Hazards: ${selectedEntityDoc.hazards?.map((h: any) => h.name).join(', ')}. Atmosphere: ${selectedEntityDoc.regionalEffects?.join('; ')}. Style: Professional D&D 5e official battlemap, high detail, gridded.`;
+                                                const prompt = `Battlemap: ${selectedEntityDoc.name}. Type: ${selectedEntityDoc.type}. Description: ${selectedEntityDoc.description}. Features: ${selectedEntityDoc.keyFeatures?.join(', ')}. Hazards: ${selectedEntityDoc.hazards?.join(', ')}. Atmosphere: ${selectedEntityDoc.regionalEffects?.join('; ')}. Style: Professional D&D 5e official battlemap, high detail, gridded.`;
                                                 navigator.clipboard.writeText(prompt);
                                                 // We could also trigger a context action here if needed
                                             }}
@@ -942,24 +952,24 @@ export function WorldGrimoireTool({ activeSession, setGlobalLoading, onContextAc
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {isEditing ? (
                                             <textarea
-                                                value={editedData.hazards?.map((h: any) => `${h.name}: ${h.desc}`).join('\n\n')}
+                                                value={editedData.hazards?.join('\n\n') || ''}
                                                 onChange={(e) => {
-                                                    const lines = e.target.value.split('\n\n');
-                                                    const hazards = lines.map(line => {
-                                                        const [name, ...desc] = line.split(':');
-                                                        return { name: name.trim(), desc: desc.join(':').trim() };
-                                                    });
+                                                    const hazards = e.target.value.split('\n\n').filter((h: string) => h.trim() !== '');
                                                     setEditedData({ ...editedData, hazards });
                                                 }}
                                                 className="md:col-span-2 w-full h-32 bg-black/40 border border-white/10 rounded-xl p-3 text-[11px] text-white outline-none"
                                                 placeholder="Perigo 1: Descrição...&#10;&#10;Perigo 2: Descrição..."
                                             />
-                                        ) : selectedEntityDoc.hazards.map((h: any, i: number) => (
-                                            <div key={i} className="p-3 bg-white/5 rounded-xl border border-white/5">
-                                                <p className="text-xs font-bold text-white mb-1">{h.name}</p>
-                                                <p className="text-[10px] text-muted-foreground leading-tight">{h.desc}</p>
-                                            </div>
-                                        ))}
+                                        ) : selectedEntityDoc.hazards.map((h: string, i: number) => {
+                                            const [name, ...descParts] = h.split(':');
+                                            const desc = descParts.join(':').trim();
+                                            return (
+                                                <div key={i} className="p-3 bg-white/5 rounded-xl border border-white/5">
+                                                    <p className="text-xs font-bold text-white mb-1">{name ? name + ':' : ''}</p>
+                                                    <p className="text-[10px] text-muted-foreground leading-tight">{desc || name}</p>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}
