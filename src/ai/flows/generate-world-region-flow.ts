@@ -42,7 +42,7 @@ export const generateWorldFoundationFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'gemini-2.5-flash',
+         model: 'googleai/gemini-2.5-flash',
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 1: CRIAR AS BASES DO MUNDO (Fundação Histórica, Política e Religiosa).
          
@@ -76,7 +76,7 @@ export const generateWorldEntitiesFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'gemini-2.5-flash',
+         model: 'googleai/gemini-2.5-flash',
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 2: POVOAR O MUNDO (Facções, NPCs e Locais).
          
@@ -118,7 +118,7 @@ export const generateWorldGameplayFlow = ai.defineFlow(
    },
    async (input) => {
       const { output } = await ai.generate({
-         model: 'gemini-2.5-flash',
+         model: 'googleai/gemini-2.5-flash',
          system: baseSystemInstruction,
          prompt: `OBJETIVO DA ETAPA 3: GERAR GAMEPLAY (Rumores, Encontros, Quests, Loot e Sessão 0).
          
